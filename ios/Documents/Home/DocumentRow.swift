@@ -8,11 +8,7 @@ struct DocumentRow: View {
     var body: some View {
         Button(action: onOpen) {
             HStack(spacing: 12) {
-                Image(systemName: record.kind.symbolName)
-                    .font(.title3)
-                    .foregroundStyle(.tint)
-                    .frame(width: 32, height: 32)
-                    .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
+                ThumbnailView(record: record)
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text(record.displayName)
@@ -21,6 +17,10 @@ struct DocumentRow: View {
                         Text(record.lastOpenedAt, format: .relative(presentation: .named))
                         Text("·")
                         Text(record.sizeBytes, format: .byteCount(style: .file))
+                        if record.kind == .pdf, let pageCount = record.pageCount {
+                            Text("·")
+                            Text("\(pageCount) page\(pageCount == 1 ? "" : "s")")
+                        }
                     }
                     .font(.caption)
                     .foregroundStyle(.secondary)

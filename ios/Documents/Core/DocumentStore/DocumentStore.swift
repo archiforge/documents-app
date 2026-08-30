@@ -236,6 +236,19 @@ final class DocumentStore {
         }
     }
 
+    /// Persists the page count the thumbnail pipeline computed for a PDF, so
+    /// rows can badge it without re-parsing the file on every render.
+    func setPageCount(_ pageCount: Int, for record: DocumentRecord) throws {
+        let previous = record.pageCount
+        record.pageCount = pageCount
+        do {
+            try save()
+        } catch {
+            record.pageCount = previous
+            throw error
+        }
+    }
+
     func toggleFavorite(_ record: DocumentRecord) throws {
         let previous = record.isFavorite
         record.isFavorite.toggle()
