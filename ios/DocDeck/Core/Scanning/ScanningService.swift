@@ -25,7 +25,7 @@ enum ScanMode: String, CaseIterable, Identifiable, Hashable, Sendable {
         case .idCard:
             "Capture the front side first, then the back side. Each side becomes one PDF page."
         case .testPaper:
-            "Capture the paper, and DocDeck runs on-device text recognition and saves the result as a text file."
+            "Capture the paper, and Documents runs on-device text recognition and saves the result as a text file."
         }
     }
 }

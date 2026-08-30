@@ -15,7 +15,7 @@ enum Provenance: String, Codable, CaseIterable, Sendable {
         switch self {
         case .imported: nil
         case .scanned: "From ‘Scan document’"
-        case .created: "Created in DocDeck"
+        case .created: "Created in Documents"
         case .converted: "From converter"
         case .device: "On this device"
         case .cloud: "iCloud Drive"

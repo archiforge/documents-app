@@ -1,4 +1,8 @@
-# DocDeck (iOS) — Increments 1 & 2
+# Documents (iOS) — Increments 1 & 2
+
+The official app name is **Documents** (home-screen display name). "DocDeck"
+remains the internal Xcode target, module, and scheme name used by the
+commands below.
 
 An original SwiftUI document-hub app for iOS 26 (Phase 0 foundations, Phase 1
 core, and Phase 2 toolbox of the parent plan in `../analysis/IOS_PLAN.md`).

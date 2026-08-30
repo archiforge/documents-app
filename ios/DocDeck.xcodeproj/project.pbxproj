@@ -629,8 +629,8 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				ENABLE_TESTABILITY = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = DocDeck;
-				INFOPLIST_KEY_NSCameraUsageDescription = "DocDeck uses the camera to scan documents, ID cards, and test papers.";
+				INFOPLIST_KEY_CFBundleDisplayName = Documents;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Documents uses the camera to scan documents, ID cards, and test papers.";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -651,8 +651,8 @@
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				ENABLE_TESTABILITY = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = DocDeck;
-				INFOPLIST_KEY_NSCameraUsageDescription = "DocDeck uses the camera to scan documents, ID cards, and test papers.";
+				INFOPLIST_KEY_CFBundleDisplayName = Documents;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Documents uses the camera to scan documents, ID cards, and test papers.";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
 				LD_RUNPATH_SEARCH_PATHS = (

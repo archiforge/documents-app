@@ -36,7 +36,7 @@ struct SettingsView: View {
 
                 Section("About") {
                     LabeledContent("Version", value: appVersion)
-                    Text("DocDeck is an original SwiftUI implementation of a document hub. All code, assets, and wording are original and share nothing with any third-party application.")
+                    Text("Documents is an original SwiftUI implementation of a document hub. All code, assets, and wording are original and share nothing with any third-party application.")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
