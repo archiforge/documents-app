@@ -1,0 +1,28 @@
+# macOS
+.DS_Store
+
+# Xcode build artifacts & user state
+ios/build/
+DerivedData/
+xcuserdata/
+*.xcuserstate
+
+# Decompiled APK output (regenerable from Documents.apk)
+analysis/apk/
+analysis/apktool/
+analysis/jadx/
+analysis/strings_all.txt
+
+# Downloaded tool distributions (jadx et al.)
+tools/
+
+# Binary reference material
+*.apk
+*.mp4
+
+# Session logs
+logs/
+
+# Agent tooling state
+.mimosa/
+.zcode/

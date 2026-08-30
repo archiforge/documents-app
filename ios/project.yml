@@ -1,0 +1,68 @@
+name: DocDeck
+
+options:
+  createIntermediateGroups: true
+  bundleIdPrefix: com.docdeck
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    CODE_SIGN_STYLE: Automatic
+    DEVELOPMENT_TEAM: P6N9Y58QYJ
+    ENABLE_USER_SCRIPT_SANDBOXING: "YES"
+
+packages:
+  ZIPFoundation:
+    url: https://github.com/weichsel/ZIPFoundation
+    from: "0.9.19"
+
+targets:
+  DocDeck:
+    type: application
+    platform: iOS
+    deploymentTarget: "26.0"
+    sources:
+      - path: DocDeck
+    dependencies:
+      - package: ZIPFoundation
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.docdeck.app
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_CFBundleDisplayName: DocDeck
+        INFOPLIST_KEY_NSCameraUsageDescription: DocDeck uses the camera to scan documents, ID cards, and test papers.
+        TARGETED_DEVICE_FAMILY: "1,2"
+        ENABLE_TESTABILITY: "YES"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+
+  DocDeckTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "26.0"
+    sources:
+      - path: DocDeckTests
+    dependencies:
+      - target: DocDeck
+      - package: ZIPFoundation
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.docdeck.app.tests
+        GENERATE_INFOPLIST_FILE: YES
+
+schemes:
+  DocDeck:
+    build:
+      targets:
+        DocDeck: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - DocDeckTests
+    profile:
+      config: Release
+    analyze:
+      config: Debug
