@@ -1,5 +1,5 @@
 import XCTest
-@testable import DocDeck
+@testable import Documents
 
 /// The format filter chips and their matching rules (Android chip order).
 final class FormatFilterTests: XCTestCase {

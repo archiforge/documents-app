@@ -1,6 +1,6 @@
 import PDFKit
 import XCTest
-@testable import DocDeck
+@testable import Documents
 
 final class PDFToolboxTests: XCTestCase {
     // MARK: - Merge
@@ -65,7 +65,7 @@ final class PDFToolboxTests: XCTestCase {
     func testWatermarkKeepsPageCountAndChangesBytes() throws {
         let source = TestPDF.make(pageCount: 3)
 
-        let watermarked = try PDFToolbox.watermark(source, text: "DocDeck Sample")
+        let watermarked = try PDFToolbox.watermark(source, text: "Documents Sample")
 
         XCTAssertEqual(
             try PDFToolbox.pageCount(of: watermarked),

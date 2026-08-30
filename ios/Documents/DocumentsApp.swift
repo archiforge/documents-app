@@ -2,7 +2,7 @@ import SwiftData
 import SwiftUI
 
 @main
-struct DocDeckApp: App {
+struct DocumentsApp: App {
     private let container: ModelContainer
     @State private var store: DocumentStore
 

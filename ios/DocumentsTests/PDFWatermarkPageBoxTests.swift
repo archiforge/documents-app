@@ -1,7 +1,7 @@
 import CoreGraphics
 import PDFKit
 import XCTest
-@testable import DocDeck
+@testable import Documents
 
 /// Phase 0 regression: the watermark pass used to stamp every output page
 /// with a fixed US-Letter media box (612×792), clipping A4, landscape, and

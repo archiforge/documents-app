@@ -1,6 +1,6 @@
 import CoreGraphics
 import XCTest
-@testable import DocDeck
+@testable import Documents
 
 /// The "Save as Long Image" stitcher: common width, stacked heights.
 final class LongImageAssemblerTests: XCTestCase {

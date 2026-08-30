@@ -1,6 +1,6 @@
 import PDFKit
 import XCTest
-@testable import DocDeck
+@testable import Documents
 
 final class PDFAssemblerTests: XCTestCase {
     func testTwoImagesBecomeTwoPagesSizedToImages() throws {

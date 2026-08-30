@@ -1,6 +1,6 @@
 import XCTest
 import ZIPFoundation
-@testable import DocDeck
+@testable import Documents
 
 final class ArchiveServiceTests: XCTestCase {
     private var tempDir: URL!

@@ -1,5 +1,5 @@
 import XCTest
-@testable import DocDeck
+@testable import Documents
 
 @MainActor
 final class ScanningServiceTests: XCTestCase {

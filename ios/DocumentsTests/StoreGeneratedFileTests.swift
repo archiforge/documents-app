@@ -1,6 +1,6 @@
 import SwiftData
 import XCTest
-@testable import DocDeck
+@testable import Documents
 
 /// Covers the Increment-2 store additions: `saveGeneratedFile` (toolbox,
 /// scanner, and converter output) and `adoptFile` (Browse → PDF Tools).

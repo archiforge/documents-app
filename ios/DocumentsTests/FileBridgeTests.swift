@@ -1,5 +1,5 @@
 import XCTest
-@testable import DocDeck
+@testable import Documents
 
 final class FileBridgeTests: XCTestCase {
     private var tempDir: URL!
@@ -59,7 +59,7 @@ final class FileBridgeTests: XCTestCase {
         let bridge = FileBridge(documentsDirectory: documents)
 
         let source = tempDir.appendingPathComponent("Original.txt")
-        let payload = "hello docdeck"
+        let payload = "hello documents"
         try payload.write(to: source, atomically: true, encoding: .utf8)
 
         let imported = try bridge.importFile(from: source)

@@ -1,6 +1,6 @@
 import XCTest
 import VisionKit
-@testable import DocDeck
+@testable import Documents
 
 /// Drives the scan session through its callback adapter. The VisionKit
 /// delegate methods themselves need real hardware (`VNDocumentCameraScan`

@@ -1,6 +1,6 @@
 import SwiftData
 import XCTest
-@testable import DocDeck
+@testable import Documents
 
 /// Phase 0 regression: store mutations used to swallow SwiftData failures
 /// (`try? context.save()`), letting UI state and disk state diverge.
@@ -17,7 +17,7 @@ final class StoreMutationFailureTests: XCTestCase {
     override func setUp() {
         super.setUp()
         tempRoot = FileManager.default.temporaryDirectory
-            .appendingPathComponent("DocDeckMutationTests-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("DocumentsMutationTests-\(UUID().uuidString)", isDirectory: true)
         documentsDir = tempRoot.appendingPathComponent("Documents", isDirectory: true)
         sourcesDir = tempRoot.appendingPathComponent("Sources", isDirectory: true)
         try? FileManager.default.createDirectory(at: sourcesDir, withIntermediateDirectories: true)
@@ -44,7 +44,7 @@ final class StoreMutationFailureTests: XCTestCase {
 
     private struct InjectedSaveFailure: Error {}
 
-    private func makeSourceFile(named name: String, contents: String = "DocDeck test file") throws -> URL {
+    private func makeSourceFile(named name: String, contents: String = "Documents test file") throws -> URL {
         let url = sourcesDir.appendingPathComponent(name)
         try contents.write(to: url, atomically: true, encoding: .utf8)
         return url

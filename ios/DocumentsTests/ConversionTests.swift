@@ -1,6 +1,6 @@
 import PDFKit
 import XCTest
-@testable import DocDeck
+@testable import Documents
 
 /// Pure rendering tests for every on-device converter (text/md/html/image
 /// → PDF) plus the Phase-2b gating of office sources.
@@ -8,7 +8,7 @@ final class ConversionTests: XCTestCase {
     // MARK: - On-device renderers
 
     func testTextToPDFProducesAtLeastOnePage() throws {
-        let data = TextToPDF.pdf(from: "Hello DocDeck\nSecond line")
+        let data = TextToPDF.pdf(from: "Hello Documents\nSecond line")
 
         XCTAssertGreaterThanOrEqual(try PDFToolbox.pageCount(of: data), 1)
     }
@@ -25,7 +25,7 @@ final class ConversionTests: XCTestCase {
 
     func testMarkdownToPDFProducesAtLeastOnePage() throws {
         let data = MarkdownToPDF.pdf(fromMarkdown: """
-        # DocDeck
+        # Documents
 
         - first item
         - second item
@@ -44,7 +44,7 @@ final class ConversionTests: XCTestCase {
 
     @MainActor
     func testHTMLToPDFProducesAtLeastOnePage() throws {
-        let data = HTMLToPDF.pdf(fromHTML: "<h1>DocDeck</h1><p>Hello from HTML.</p>")
+        let data = HTMLToPDF.pdf(fromHTML: "<h1>Documents</h1><p>Hello from HTML.</p>")
 
         XCTAssertGreaterThanOrEqual(try PDFToolbox.pageCount(of: data), 1)
     }
@@ -113,7 +113,7 @@ final class ConversionRegistryTests: XCTestCase {
     }
 
     func testTextRecordConvertsToPDFFile() async throws {
-        let record = try makeRecord(named: "ConversionFixture.txt", kind: .text, contents: "Hello DocDeck")
+        let record = try makeRecord(named: "ConversionFixture.txt", kind: .text, contents: "Hello Documents")
 
         let outputURL = try await ConversionRegistry.convert(record, to: .pdf)
         tempOutputDirs.append(outputURL.deletingLastPathComponent())

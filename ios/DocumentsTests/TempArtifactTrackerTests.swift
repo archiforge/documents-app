@@ -1,5 +1,5 @@
 import XCTest
-@testable import DocDeck
+@testable import Documents
 
 /// Phase 0 regression: preview/share temp PDFs used to be written straight
 /// into the system tmp dir and never removed. The tracker must write,
@@ -13,7 +13,7 @@ final class TempArtifactTrackerTests: XCTestCase {
     override func setUp() {
         super.setUp()
         root = FileManager.default.temporaryDirectory
-            .appendingPathComponent("DocDeckArtifactTests-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("DocumentsArtifactTests-\(UUID().uuidString)", isDirectory: true)
         tracker = TempArtifactTracker(directory: root)
     }
 

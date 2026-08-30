@@ -1,5 +1,5 @@
 import XCTest
-@testable import DocDeck
+@testable import Documents
 
 /// Day-grouping headers for the Recent list ("Today · 4 files" style).
 final class DateGroupingTests: XCTestCase {

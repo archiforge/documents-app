@@ -1,5 +1,5 @@
 import XCTest
-@testable import DocDeck
+@testable import Documents
 
 final class DocumentKindTests: XCTestCase {
     func testKindDerivedFromExtension() {

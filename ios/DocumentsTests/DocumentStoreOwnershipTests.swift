@@ -1,6 +1,6 @@
 import SwiftData
 import XCTest
-@testable import DocDeck
+@testable import Documents
 
 /// Phase 0 regression: deletion used to go through `relativePath` even for
 /// records carrying an `absolutePath`, so deleting an external record could
@@ -18,7 +18,7 @@ final class DocumentStoreOwnershipTests: XCTestCase {
     override func setUp() {
         super.setUp()
         tempRoot = FileManager.default.temporaryDirectory
-            .appendingPathComponent("DocDeckOwnershipTests-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("DocumentsOwnershipTests-\(UUID().uuidString)", isDirectory: true)
         documentsDir = tempRoot.appendingPathComponent("Documents", isDirectory: true)
         sourcesDir = tempRoot.appendingPathComponent("Sources", isDirectory: true)
         try? FileManager.default.createDirectory(at: sourcesDir, withIntermediateDirectories: true)
@@ -118,7 +118,7 @@ final class DocumentStoreOwnershipTests: XCTestCase {
         XCTAssertFalse(fileExists("Shared.pdf"), "the app-owned file goes with its record")
     }
 
-    private func makeSourceFile(named name: String, contents: String = "DocDeck test file") throws -> URL {
+    private func makeSourceFile(named name: String, contents: String = "Documents test file") throws -> URL {
         let url = sourcesDir.appendingPathComponent(name)
         try contents.write(to: url, atomically: true, encoding: .utf8)
         return url

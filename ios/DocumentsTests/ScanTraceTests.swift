@@ -1,5 +1,5 @@
 import XCTest
-@testable import DocDeck
+@testable import Documents
 
 /// Phase 0 regression: `scanTrace` used to call itself unconditionally,
 /// stack-overflowing on the very first trace — every scan success, cancel,

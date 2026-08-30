@@ -1,6 +1,6 @@
 import SwiftData
 import XCTest
-@testable import DocDeck
+@testable import Documents
 
 /// What the device library admits into the index.
 final class DeviceLibraryTests: XCTestCase {

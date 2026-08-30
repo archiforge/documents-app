@@ -1,5 +1,5 @@
 import XCTest
-@testable import DocDeck
+@testable import Documents
 
 /// Pins the shipped scan-naming path: `ScanningService.baseName` /
 /// `fileName` are what the scanner flow actually uses for every save, so

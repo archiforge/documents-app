@@ -1,6 +1,6 @@
 import SwiftData
 import XCTest
-@testable import DocDeck
+@testable import Documents
 
 @MainActor
 final class DocumentStoreTests: XCTestCase {
@@ -13,7 +13,7 @@ final class DocumentStoreTests: XCTestCase {
     override func setUp() {
         super.setUp()
         tempRoot = FileManager.default.temporaryDirectory
-            .appendingPathComponent("DocDeckTests-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("DocumentsTests-\(UUID().uuidString)", isDirectory: true)
         documentsDir = tempRoot.appendingPathComponent("Documents", isDirectory: true)
         sourcesDir = tempRoot.appendingPathComponent("Sources", isDirectory: true)
         try? FileManager.default.createDirectory(at: sourcesDir, withIntermediateDirectories: true)
@@ -38,7 +38,7 @@ final class DocumentStoreTests: XCTestCase {
 
     // MARK: - Helpers
 
-    private func makeSourceFile(named name: String, contents: String = "DocDeck test file") throws -> URL {
+    private func makeSourceFile(named name: String, contents: String = "Documents test file") throws -> URL {
         let url = sourcesDir.appendingPathComponent(name)
         try contents.write(to: url, atomically: true, encoding: .utf8)
         return url

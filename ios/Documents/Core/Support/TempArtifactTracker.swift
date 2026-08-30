@@ -12,7 +12,7 @@ import Foundation
 /// window.
 final class TempArtifactTracker: @unchecked Sendable {
     static let defaultDirectory = FileManager.default.temporaryDirectory
-        .appendingPathComponent("DocDeckArtifacts", isDirectory: true)
+        .appendingPathComponent("DocumentsArtifacts", isDirectory: true)
 
     /// How long an artifact may survive on disk before the launch sweep
     /// removes it. Generous enough to outlive a slow share extension.
