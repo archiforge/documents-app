@@ -1,8 +1,7 @@
 # Documents (iOS) — Increments 1 & 2
 
-The official app name is **Documents** (home-screen display name). "DocDeck"
-remains the internal Xcode target, module, and scheme name used by the
-commands below.
+The app is named **Documents** everywhere — home-screen display name, Xcode
+project, target, module, and scheme.
 
 An original SwiftUI document-hub app for iOS 26 (Phase 0 foundations, Phase 1
 core, and Phase 2 toolbox of the parent plan in `../analysis/IOS_PLAN.md`).
@@ -23,26 +22,26 @@ third-party application.
 ```bash
 cd ios
 
-# 1. Generate DocDeck.xcodeproj from project.yml
+# 1. Generate Documents.xcodeproj from project.yml
 xcodegen generate
 
 # 2. Build (simulator only)
-xcodebuild -project DocDeck.xcodeproj -scheme DocDeck \
+xcodebuild -project Documents.xcodeproj -scheme Documents \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max' build
 
 # 3. Run the unit tests
-xcodebuild test -project DocDeck.xcodeproj -scheme DocDeck \
+xcodebuild test -project Documents.xcodeproj -scheme Documents \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max' \
-  -only-testing:DocDeckTests
+  -only-testing:DocumentsTests
 ```
 
-Or open `DocDeck.xcodeproj` in Xcode, pick the iPhone 17 Pro Max simulator, and hit Run.
+Or open `Documents.xcodeproj` in Xcode, pick the iPhone 17 Pro Max simulator, and hit Run.
 Note: the `.xcodeproj` is generated — edit `project.yml`, then re-run `xcodegen generate`.
 
 ### Running on a physical device
 
-1. Build for device: `xcodebuild -project DocDeck.xcodeproj -scheme DocDeck -destination 'generic/platform=iOS' build`
-2. Install: `xcrun devicectl device install app --device <coredevice-id> <path>/DocDeck.app`
+1. Build for device: `xcodebuild -project Documents.xcodeproj -scheme Documents -destination 'generic/platform=iOS' build`
+2. Install: `xcrun devicectl device install app --device <coredevice-id> <path>/Documents.app`
 3. First launch only: on the iPhone go to **Settings → General → VPN & Device
    Management** and trust the developer certificate, then launch the app.
 
@@ -52,9 +51,9 @@ Note: the `.xcodeproj` is generated — edit `project.yml`, then re-run `xcodege
 
 ```
 ios/
-├── project.yml                 # XcodeGen spec (DocDeck app + DocDeckTests + ZIPFoundation package)
-├── DocDeck/
-│   ├── DocDeckApp.swift        # @main, SwiftData container + store wiring
+├── project.yml                 # XcodeGen spec (Documents app + DocumentsTests + ZIPFoundation package)
+├── Documents/
+│   ├── DocumentsApp.swift        # @main, SwiftData container + store wiring
 │   ├── Home/                   # Tab shell: Recent, Favorites, Tools, Cloud, Browse
 │   ├── Viewers/                # QLPreviewController wrapper + open/share flow
 │   ├── Core/DocumentStore/     # SwiftData model + @MainActor store service
@@ -66,7 +65,7 @@ ios/
 │   ├── Tools/                  # Tools grid, PDF Tools screen + flows, scanner & convert flows, archive sheets
 │   ├── Settings/               # Settings placeholder + Trash management
 │   └── Resources/              # Assets.xcassets (placeholder accent color/icon)
-└── DocDeckTests/               # Store, FileBridge, PDF toolbox, scanning, OCR, archive, conversion tests
+└── DocumentsTests/               # Store, FileBridge, PDF toolbox, scanning, OCR, archive, conversion tests
 ```
 
 ### Feature status vs parent plan phases
@@ -104,9 +103,9 @@ ios/
 - **Scanner API choice:** the iOS 26 SDK ships no newer `DocumentScannerViewController`;
   VisionKit's scanner options are `VNDocumentCameraViewController` (page-oriented
   captures) and `DataScannerViewController` (live AR scanning without page output),
-  so DocDeck wraps `VNDocumentCameraViewController`.
+  so Documents wraps `VNDocumentCameraViewController`.
 - **PDF image extraction:** `CGPDFStream.copyData()` returns decoded bytes, which would
-  destroy JPEGs; DocDeck instead walks the raw PDF bytes for `DCTDecode` streams and
+  destroy JPEGs; Documents instead walks the raw PDF bytes for `DCTDecode` streams and
   slices `stream…endstream` payloads, trimming to JPEG SOI/EOI markers. PDFs with no
   embedded JPEGs fall back to rendering each page as PNG (flagged in the result).
 - **HTML → PDF** runs on the main actor because `UIMarkupTextPrintFormatter` /

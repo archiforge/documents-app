@@ -1,4 +1,4 @@
-name: DocDeck
+name: Documents
 
 options:
   createIntermediateGroups: true
@@ -17,12 +17,12 @@ packages:
     from: "0.9.19"
 
 targets:
-  DocDeck:
+  Documents:
     type: application
     platform: iOS
     deploymentTarget: "26.0"
     sources:
-      - path: DocDeck
+      - path: Documents
     dependencies:
       - package: ZIPFoundation
     settings:
@@ -37,14 +37,14 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
 
-  DocDeckTests:
+  DocumentsTests:
     type: bundle.unit-test
     platform: iOS
     deploymentTarget: "26.0"
     sources:
-      - path: DocDeckTests
+      - path: DocumentsTests
     dependencies:
-      - target: DocDeck
+      - target: Documents
       - package: ZIPFoundation
     settings:
       base:
@@ -52,16 +52,16 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
 
 schemes:
-  DocDeck:
+  Documents:
     build:
       targets:
-        DocDeck: all
+        Documents: all
     run:
       config: Debug
     test:
       config: Debug
       targets:
-        - DocDeckTests
+        - DocumentsTests
     profile:
       config: Release
     analyze:

@@ -54,7 +54,7 @@ Update `ToolItem` kinds: Scan Document/ID Card/Test Paper → scanner flows; For
 ## Definition of Done (evidence required)
 1. `xcodegen generate` + simulator build on `iPhone 17 Pro Max` → BUILD SUCCEEDED.
 2. Device build `-destination 'generic/platform=iOS'` → BUILD SUCCEEDED (signing already configured).
-3. `xcodebuild test -only-testing:DocDeckTests` → all green, including NEW tests for: PDFAssembler (2 images → 2-page PDF), merge (page-count math), split range + every-N, watermark (output page count == input, bytes differ), sign stamp (page count preserved), JPEG extraction from a generated PDF containing a JPEG XObject (if too brittle: test the DCTDecode stream parser against a crafted minimal PDF you generate in-test), zip round-trip, OCR on a rendered text image (assert recognized string contains the text), each on-device converter (text/md/html/image → PDF with expected page count ≥1), office-source conversion throws the pending error.
+3. `xcodebuild test -only-testing:DocumentsTests` → all green, including NEW tests for: PDFAssembler (2 images → 2-page PDF), merge (page-count math), split range + every-N, watermark (output page count == input, bytes differ), sign stamp (page count preserved), JPEG extraction from a generated PDF containing a JPEG XObject (if too brittle: test the DCTDecode stream parser against a crafted minimal PDF you generate in-test), zip round-trip, OCR on a rendered text image (assert recognized string contains the text), each on-device converter (text/md/html/image → PDF with expected page count ≥1), office-source conversion throws the pending error.
 4. README updated (feature status; note encrypt + office conversion deferred to 2b; note ZIPFoundation dependency).
 5. Nothing outside `ios/` touched.
 

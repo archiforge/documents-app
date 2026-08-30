@@ -15,10 +15,10 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "2918F60CA870057E80700984"
-               BuildableName = "DocDeck.app"
-               BlueprintName = "DocDeck"
-               ReferencedContainer = "container:DocDeck.xcodeproj">
+               BlueprintIdentifier = "8413EBB1A2A1D3B15362B5B4"
+               BuildableName = "Documents.app"
+               BlueprintName = "Documents"
+               ReferencedContainer = "container:Documents.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -32,10 +32,10 @@
       <MacroExpansion>
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "2918F60CA870057E80700984"
-            BuildableName = "DocDeck.app"
-            BlueprintName = "DocDeck"
-            ReferencedContainer = "container:DocDeck.xcodeproj">
+            BlueprintIdentifier = "8413EBB1A2A1D3B15362B5B4"
+            BuildableName = "Documents.app"
+            BlueprintName = "Documents"
+            ReferencedContainer = "container:Documents.xcodeproj">
          </BuildableReference>
       </MacroExpansion>
       <Testables>
@@ -44,10 +44,10 @@
             parallelizable = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "C8EB8C321DFFEDC8AFBD18E1"
-               BuildableName = "DocDeckTests.xctest"
-               BlueprintName = "DocDeckTests"
-               ReferencedContainer = "container:DocDeck.xcodeproj">
+               BlueprintIdentifier = "C516A038FBD0DFA498E8F948"
+               BuildableName = "DocumentsTests.xctest"
+               BlueprintName = "DocumentsTests"
+               ReferencedContainer = "container:Documents.xcodeproj">
             </BuildableReference>
          </TestableReference>
       </Testables>
@@ -68,10 +68,10 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "2918F60CA870057E80700984"
-            BuildableName = "DocDeck.app"
-            BlueprintName = "DocDeck"
-            ReferencedContainer = "container:DocDeck.xcodeproj">
+            BlueprintIdentifier = "8413EBB1A2A1D3B15362B5B4"
+            BuildableName = "Documents.app"
+            BlueprintName = "Documents"
+            ReferencedContainer = "container:Documents.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
       <CommandLineArguments>
@@ -87,10 +87,10 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "2918F60CA870057E80700984"
-            BuildableName = "DocDeck.app"
-            BlueprintName = "DocDeck"
-            ReferencedContainer = "container:DocDeck.xcodeproj">
+            BlueprintIdentifier = "8413EBB1A2A1D3B15362B5B4"
+            BuildableName = "Documents.app"
+            BlueprintName = "Documents"
+            ReferencedContainer = "container:Documents.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
       <CommandLineArguments>

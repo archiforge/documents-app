@@ -4,7 +4,7 @@ Parent plan: `/Users/mohamed/Work/Personal/projects/oneplus-docs-app/analysis/IO
 Feature spec from the reversed Android app: `/Users/mohamed/Work/Personal/projects/oneplus-docs-app/analysis/REPORT.md`
 
 ## Goal
-Scaffold and implement the iOS 26 app **"DocDeck"** (placeholder brand) — Phase 0 (foundations) and Phase 1 core (home shell + viewers + document store) from the parent plan. All code original. **Do not copy or reference any APK assets, strings, icons, or code** — REPORT.md is a behavioral spec only.
+Scaffold and implement the iOS 26 app **"Documents"** (placeholder brand) — Phase 0 (foundations) and Phase 1 core (home shell + viewers + document store) from the parent plan. All code original. **Do not copy or reference any APK assets, strings, icons, or code** — REPORT.md is a behavioral spec only.
 
 ## Environment (verified working)
 - macOS, Xcode 26.6, iOS SDK 26.5, iOS 26.5 simulator runtime.
@@ -23,9 +23,9 @@ Scaffold and implement the iOS 26 app **"DocDeck"** (placeholder brand) — Phas
 ## Required structure
 ```
 ios/
-├── project.yml                 # XcodeGen spec (targets: DocDeck app, DocDeckTests)
-├── DocDeck/
-│   ├── DocDeckApp.swift        # @main, SwiftData container setup
+├── project.yml                 # XcodeGen spec (targets: Documents app, DocumentsTests)
+├── Documents/
+│   ├── DocumentsApp.swift        # @main, SwiftData container setup
 │   ├── Home/                   # Tab shell: Recent, Favorites, Tools, Cloud, Browse
 │   ├── Viewers/                # QuickLookPreview (QLPreviewController wrapper) + open flow
 │   ├── Core/DocumentStore/     # SwiftData model + service (see spec below)
@@ -33,7 +33,7 @@ ios/
 │   ├── Tools/                  # Tools grid + stub screens
 │   ├── Settings/               # placeholder settings screen
 │   └── Resources/              # Assets.xcassets (generated placeholder icon is fine)
-└── DocDeckTests/               # unit tests (see DoD)
+└── DocumentsTests/               # unit tests (see DoD)
 ```
 
 ## Feature spec
@@ -70,8 +70,8 @@ Placeholder list: app version (from bundle), Empty Trash button (with confirmati
 
 ## Definition of Done (evidence required in final report)
 1. `cd ios && xcodegen generate` succeeds.
-2. `xcodebuild -project DocDeck.xcodeproj -scheme DocDeck -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max' build` → **BUILD SUCCEEDED** (paste tail of output).
-3. `xcodebuild test -project DocDeck.xcodeproj -scheme DocDeck -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max' -only-testing:DocDeckTests` → all tests pass (paste summary line). Tests must cover at least: import + dedupe naming, recent ordering on recordOpen, favorite toggle, trash/restore/deleteForever incl. on-disk deletion, emptyTrash.
+2. `xcodebuild -project Documents.xcodeproj -scheme Documents -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max' build` → **BUILD SUCCEEDED** (paste tail of output).
+3. `xcodebuild test -project Documents.xcodeproj -scheme Documents -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max' -only-testing:DocumentsTests` → all tests pass (paste summary line). Tests must cover at least: import + dedupe naming, recent ordering on recordOpen, favorite toggle, trash/restore/deleteForever incl. on-disk deletion, emptyTrash.
 4. `ios/README.md` with build/run instructions and current feature status vs parent plan phases.
 5. No files modified outside `ios/`.
 

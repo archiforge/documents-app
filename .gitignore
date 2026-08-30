@@ -15,7 +15,7 @@ xcuserdata/
 
 # Downloaded tool distributions (jadx et al.)
 # Root-anchored: on case-insensitive macOS git, a bare "tools/" also matches
-# ios/DocDeck/Tools/ and silently drops app sources from the commit.
+# ios/Documents/Tools/ and silently drops app sources from the commit.
 /tools/
 
 # Binary reference material
