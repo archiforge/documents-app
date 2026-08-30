@@ -26,12 +26,30 @@ final class DeviceLibraryTests: XCTestCase {
     @MainActor
     private func makeStore() -> DocumentStore {
         let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
-        container = try! ModelContainer(for: DocumentRecord.self, configurations: configuration)
+        container = try! ModelContainer(for: DocumentRecord.self, FolderGrant.self, configurations: configuration)
         return DocumentStore(
             context: container.mainContext,
             fileBridge: FileBridge(documentsDirectory: documentsDir)
         )
     }
+
+    /// Polls until `condition` holds or the timeout expires; sync passes run
+    /// detached from `start(store:)`, so adoption cannot be awaited directly.
+    @MainActor
+    private func waitFor(
+        _ condition: @MainActor () throws -> Bool,
+        timeout: TimeInterval = 5,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) async throws {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if try condition() { return }
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        XCTFail("Condition not met within \(timeout) seconds", file: file, line: line)
+    }
+
     func testDocumentTypesAreIndexable() {
         for name in [
             "Report.pdf", "Letter.doc", "Letter.docx", "Sheet.xlsx", "Deck.pptx",
@@ -75,5 +93,58 @@ final class DeviceLibraryTests: XCTestCase {
         )
         XCTAssertEqual(record.provenance, .imported)
         XCTAssertNil(record.provenance.caption)
+    }
+
+    @MainActor
+    func testGrantedFolderDocumentsJoinTheIndexInPlace() async throws {
+        let store = makeStore()
+        let granted = tempRoot.appendingPathComponent("Granted", isDirectory: true)
+        try FileManager.default.createDirectory(at: granted, withIntermediateDirectories: true)
+        try TestPDF.make(pageCount: 1).write(to: granted.appendingPathComponent("Report.pdf"))
+        try Data("hello".utf8).write(to: granted.appendingPathComponent("Notes.txt"))
+
+        let grants = FolderGrantService(context: container.mainContext)
+        _ = try grants.addGrant(from: granted)
+
+        let library = DeviceLibraryService()
+        library.grantService = grants
+        defer { library.stop() }
+        library.start(store: store)
+
+        try await waitFor { try store.fetchRecent().count == 2 }
+
+        let report = try XCTUnwrap(store.fetchRecent().first { $0.displayName == "Report.pdf" })
+        XCTAssertEqual(report.provenance, .device)
+        XCTAssertEqual(report.fileURL.path, granted.appendingPathComponent("Report.pdf").path)
+        XCTAssertEqual(
+            try store.fetchRecent().first { $0.displayName == "Notes.txt" }?.kind,
+            .text
+        )
+    }
+
+    @MainActor
+    func testVanishedGrantedFilesLeaveTheIndexOnSync() async throws {
+        let store = makeStore()
+        let granted = tempRoot.appendingPathComponent("Granted", isDirectory: true)
+        try FileManager.default.createDirectory(at: granted, withIntermediateDirectories: true)
+        try TestPDF.make(pageCount: 1).write(to: granted.appendingPathComponent("Report.pdf"))
+        try Data("hello".utf8).write(to: granted.appendingPathComponent("Notes.txt"))
+
+        let grants = FolderGrantService(context: container.mainContext)
+        _ = try grants.addGrant(from: granted)
+
+        let library = DeviceLibraryService()
+        library.grantService = grants
+        defer { library.stop() }
+        library.start(store: store)
+
+        try await waitFor { try store.fetchRecent().count == 2 }
+
+        try FileManager.default.removeItem(at: granted.appendingPathComponent("Report.pdf"))
+        await library.syncNowAndWait()
+
+        try await waitFor { try store.fetchRecent().count == 1 }
+        XCTAssertNil(try store.fetchRecent().first { $0.displayName == "Report.pdf" })
+        XCTAssertNotNil(try store.fetchRecent().first { $0.displayName == "Notes.txt" })
     }
 }

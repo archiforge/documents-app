@@ -8,7 +8,7 @@ struct DocDeckApp: App {
 
     init() {
         do {
-            container = try ModelContainer(for: DocumentRecord.self)
+            container = try ModelContainer(for: DocumentRecord.self, FolderGrant.self)
         } catch {
             fatalError("Failed to create SwiftData container: \(error)")
         }

@@ -4,14 +4,17 @@ import Observation
 /// Indexes every document the app is allowed to see, mirroring the Android
 /// app's "all documents on the device" view as closely as iOS sandboxes allow:
 ///
-/// - the app container's Documents tree (imports, scans, tool output), and
+/// - the app container's Documents tree (imports, scans, tool output),
+/// - every user-granted folder held open by `FolderGrantService` (the only
+///   iOS-sanctioned way to read files outside the container), and
 /// - iCloud Drive's Documents when a ubiquity container is available.
 ///
 /// Arbitrary silent scans of other apps' storage do not exist on iOS; files
 /// from other providers enter the index through the Files-app import picker
-/// (which copies them into the container, where they are indexed like any
-/// other file). A live `NSMetadataQuery` re-syncs whenever the container tree
-/// changes, so newly dropped/created files show up without a manual refresh.
+/// (which copies them into the container) or through a granted folder (which
+/// indexes them in place). A live `NSMetadataQuery` re-syncs whenever the
+/// container tree changes, so newly dropped/created files show up without a
+/// manual refresh.
 @MainActor
 @Observable
 final class DeviceLibraryService {
@@ -21,6 +24,10 @@ final class DeviceLibraryService {
     private(set) var lastSyncAt: Date?
     /// True when an iCloud ubiquity container was reachable at least once.
     private(set) var iCloudAvailable = false
+
+    /// Granted-folder service created on `start` from the store's context.
+    /// Injectable before `start` for tests.
+    var grantService: FolderGrantService?
 
     private var query: NSMetadataQuery?
     private var resyncTask: Task<Void, Never>?
@@ -35,8 +42,16 @@ final class DeviceLibraryService {
     /// Starts indexing and keeps the store in sync with container changes.
     func start(store: DocumentStore) {
         self.store = store
-        syncNow()
-        startQuery()
+        if grantService == nil {
+            grantService = FolderGrantService(context: store.context)
+        }
+        grantService?.onFoldersChanged = { [weak self] in self?.syncNow() }
+        let grants = grantService
+        Task { @MainActor in
+            await grants?.restoreAccess()
+            syncNow()
+            startQuery()
+        }
     }
 
     /// Stops observing. The service can be restarted with `start(store:)`.
@@ -48,46 +63,67 @@ final class DeviceLibraryService {
         }
     }
 
-    /// Runs one full sync pass: adopt untracked container files, adopt
-    /// iCloud Drive documents, prune external records whose file vanished.
+    /// Runs one full sync pass: adopt untracked container files, adopt files
+    /// from granted folders and iCloud Drive, prune external records whose
+    /// file vanished.
     func syncNow() {
         guard let store, !isIndexing else { return }
         isIndexing = true
-        let documentsDirectory = store.fileBridge.documentsDirectory
-
         Task { @MainActor in
-            defer {
-                isIndexing = false
-                lastSyncAt = .now
-            }
+            await runSyncPass(store: store)
+        }
+    }
 
-            // Enumeration and the ubiquity-URL lookup touch the network /
-            // disk; keep them off the main actor, then adopt on main.
-            let discovered = await Self.enumerateDocuments(in: documentsDirectory)
-            let (ubiquityRoot, ubiquityFiles) = await Self.enumerateUbiquityDocuments()
-            if ubiquityRoot != nil {
-                iCloudAvailable = true
-            }
+    /// Test seam: runs one full sync pass inline, awaiting its completion.
+    func syncNowAndWait() async {
+        guard let store, !isIndexing else { return }
+        isIndexing = true
+        await runSyncPass(store: store)
+    }
 
-            do {
-                let tracked = try store.trackedFilePaths()
-                for url in discovered where !tracked.contains(url.standardizedFileURL.path) {
-                    guard Self.isIndexable(filename: url.lastPathComponent) else { continue }
-                    _ = try store.adoptFile(at: url, provenance: .device)
-                }
-                for url in ubiquityFiles where !tracked.contains(url.standardizedFileURL.path) {
+    private func runSyncPass(store: DocumentStore) async {
+        defer {
+            isIndexing = false
+            lastSyncAt = .now
+        }
+
+        // Enumeration and the ubiquity-URL lookup touch the network /
+        // disk; keep them off the main actor, then adopt on main.
+        let documentsDirectory = store.fileBridge.documentsDirectory
+        let discovered = await Self.enumerateDocuments(in: documentsDirectory)
+        var grantedFiles: [URL] = []
+        for folder in grantService?.resolvedFolders ?? [] {
+            grantedFiles += await Self.enumerateDocuments(in: folder)
+        }
+        let (ubiquityRoot, ubiquityFiles) = await Self.enumerateUbiquityDocuments()
+        if ubiquityRoot != nil {
+            iCloudAvailable = true
+        }
+
+        do {
+            var tracked = try store.trackedFilePaths()
+            // `adopt` re-inserts each adopted path into `tracked`, so
+            // overlapping granted folders never double-adopt a file.
+            func adopt(_ urls: [URL], provenance: Provenance, external: Bool) throws {
+                for url in urls {
+                    let path = url.standardizedFileURL.path
+                    guard !tracked.contains(path) else { continue }
                     guard Self.isIndexable(filename: url.lastPathComponent) else { continue }
                     _ = try store.adoptFile(
                         at: url,
-                        provenance: .cloud,
-                        absolutePath: url.standardizedFileURL.path
+                        provenance: provenance,
+                        absolutePath: external ? path : nil
                     )
+                    tracked.insert(path)
                 }
-                pruneVanishedExternals(store: store)
-            } catch {
-                // A failed adoption must not break the pass; the next
-                // container change re-triggers a sync.
             }
+            try adopt(discovered, provenance: .device, external: false)
+            try adopt(grantedFiles, provenance: .device, external: true)
+            try adopt(ubiquityFiles, provenance: .cloud, external: true)
+            pruneVanishedExternals(store: store)
+        } catch {
+            // A failed adoption must not break the pass; the next
+            // container change re-triggers a sync.
         }
     }
 

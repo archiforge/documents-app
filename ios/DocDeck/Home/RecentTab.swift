@@ -81,7 +81,7 @@ struct RecentTab: View {
             }
             .storeFailureAlert(message: $failureText)
             .sheet(isPresented: $showSettings) {
-                SettingsView()
+                SettingsView(grantService: library.grantService)
             }
             .documentViewer(item: $presentedDocument)
         }
