@@ -33,6 +33,11 @@ struct DocumentsApp: App {
                     // Remove temp artifacts left behind by previous runs
                     // (crash, force quit) that the in-registry cleanup missed.
                     TempArtifactTracker.sweepAtLaunch()
+
+                    // Reconcile records against the disk before the library
+                    // adopts anything. Failures are logged, never fatal.
+                    await StartupRecovery.run(store: store)
+
                     // Enforce the 30-day trash retention window. A failure
                     // here must never block launch; the purge retries next run.
                     do {
