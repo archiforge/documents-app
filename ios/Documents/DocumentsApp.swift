@@ -8,7 +8,10 @@ struct DocumentsApp: App {
 
     init() {
         do {
-            container = try ModelContainer(for: DocumentRecord.self, FolderGrant.self)
+            container = try ModelContainer(
+                for: Schema(versionedSchema: SchemaV2.self),
+                migrationPlan: DocumentsSchemaMigrationPlan.self
+            )
         } catch {
             fatalError("Failed to create SwiftData container: \(error)")
         }
