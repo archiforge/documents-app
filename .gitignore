@@ -8,20 +8,22 @@ xcuserdata/
 *.xcuserstate
 
 # Decompiled APK output (regenerable from Documents.apk)
-analysis/apk/
-analysis/apktool/
-analysis/jadx/
-analysis/strings_all.txt
+/analysis/apk/
+/analysis/apktool/
+/analysis/jadx/
+/analysis/strings_all.txt
 
 # Downloaded tool distributions (jadx et al.)
-tools/
+# Root-anchored: on case-insensitive macOS git, a bare "tools/" also matches
+# ios/DocDeck/Tools/ and silently drops app sources from the commit.
+/tools/
 
 # Binary reference material
 *.apk
 *.mp4
 
 # Session logs
-logs/
+/logs/
 
 # Agent tooling state
 .mimosa/
