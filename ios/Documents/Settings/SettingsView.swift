@@ -4,10 +4,13 @@ import UniformTypeIdentifiers
 
 /// Settings: granted folders, storage, and about text.
 struct SettingsView: View {
-    var grantService: FolderGrantService?
-
     @Environment(DocumentStore.self) private var store
+    /// App-scoped library owned by `DocumentsApp`; its grant service manages
+    /// the indexed folders listed below.
+    @Environment(DeviceLibraryService.self) private var library
     @Environment(\.dismiss) private var dismiss
+
+    private var grantService: FolderGrantService? { library.grantService }
 
     @Query(sort: \FolderGrant.addedAt)
     private var folderGrants: [FolderGrant]

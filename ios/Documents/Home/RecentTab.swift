@@ -7,6 +7,9 @@ import UniformTypeIdentifiers
 /// ("Today · 4 files"), and per-row origin captions.
 struct RecentTab: View {
     @Environment(DocumentStore.self) private var store
+    /// App-scoped library owned by `DocumentsApp`; indexing survives tab
+    /// switches because this view no longer starts or stops it.
+    @Environment(DeviceLibraryService.self) private var library
 
     @Query(
         filter: #Predicate<DocumentRecord> { !$0.isTrashed },
@@ -17,7 +20,6 @@ struct RecentTab: View {
 
     @State private var filter: FormatFilter = .all
     @State private var collapsedGroups: Set<String> = []
-    @State private var library = DeviceLibraryService()
 
     @State private var isImporting = false
     @State private var presentedDocument: PresentedDocument?
@@ -81,15 +83,9 @@ struct RecentTab: View {
             }
             .storeFailureAlert(message: $failureText)
             .sheet(isPresented: $showSettings) {
-                SettingsView(grantService: library.grantService)
+                SettingsView()
             }
             .documentViewer(item: $presentedDocument)
-        }
-        .task {
-            library.start(store: store)
-        }
-        .onDisappear {
-            library.stop()
         }
     }
 

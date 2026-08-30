@@ -8,6 +8,9 @@ private let launchLog = Logger(subsystem: "com.docdeck.app", category: "launch")
 struct DocumentsApp: App {
     private let container: ModelContainer
     @State private var store: DocumentStore
+    /// App-scoped device library: created once, injected via the environment,
+    /// so indexing survives tab switches and view churn.
+    @State private var library = DeviceLibraryService()
 
     init() {
         do {
@@ -25,11 +28,11 @@ struct DocumentsApp: App {
         WindowGroup {
             HomeView()
                 .environment(store)
+                .environment(library)
                 .task {
                     // Remove temp artifacts left behind by previous runs
                     // (crash, force quit) that the in-registry cleanup missed.
                     TempArtifactTracker.sweepAtLaunch()
-
                     // Enforce the 30-day trash retention window. A failure
                     // here must never block launch; the purge retries next run.
                     do {
@@ -37,6 +40,8 @@ struct DocumentsApp: App {
                     } catch {
                         launchLog.error("Trash purge failed at launch: \(error.localizedDescription)")
                     }
+
+                    library.start(store: store)
                 }
         }
         .modelContainer(container)
