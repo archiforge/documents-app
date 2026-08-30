@@ -21,6 +21,7 @@
 		26EE8D906287A5EB18AEA852 /* FavoritesTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3411FBF3F3C44C13309B8609 /* FavoritesTab.swift */; };
 		28DB1AC74C58CF488684AE08 /* LongImageAssemblerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A830B77319621C02351F71F1 /* LongImageAssemblerTests.swift */; };
 		2A5E38762FA4A0CF0D8AFDCE /* FormatFilterRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4865E2A0C6055F6127752688 /* FormatFilterRow.swift */; };
+		2A64BAA31C73AA93D38CC767 /* DocumentStoreRenameTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBB3F4DD2318EDFB997B33A6 /* DocumentStoreRenameTests.swift */; };
 		2C8469454ECB98BADC80580C /* DocumentStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6F2B4AD7F17A0AC7CA2AEE5 /* DocumentStoreTests.swift */; };
 		2D38BE53F18E4EE87FEAB7DD /* DateGroupingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BED0CB2C07DE7F1877C54B47 /* DateGroupingTests.swift */; };
 		2F5939DFAF89F2190560F907 /* ConversionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42C4B4CA6B43E32510237525 /* ConversionTests.swift */; };
@@ -176,6 +177,7 @@
 		FA4F6FF200F0372C1E8BD022 /* ConversionTarget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConversionTarget.swift; sourceTree = "<group>"; };
 		FAB12A6CBC9EC9E0482CE4BA /* HTMLToPDF.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HTMLToPDF.swift; sourceTree = "<group>"; };
 		FB812D5377E5E003163F1C08 /* BrowseTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BrowseTab.swift; sourceTree = "<group>"; };
+		FBB3F4DD2318EDFB997B33A6 /* DocumentStoreRenameTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentStoreRenameTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -353,6 +355,7 @@
 				178DF6725D457B1A3E5FA897 /* DocumentKindTests.swift */,
 				1F051ED4FB73C35D9411E917 /* DocumentsSchemaMigrationTests.swift */,
 				DD5538F3C975CB959E253CA7 /* DocumentStoreOwnershipTests.swift */,
+				FBB3F4DD2318EDFB997B33A6 /* DocumentStoreRenameTests.swift */,
 				A6F2B4AD7F17A0AC7CA2AEE5 /* DocumentStoreTests.swift */,
 				B637B9CF1B47F83C35A57EE1 /* FileBridgeTests.swift */,
 				00BAB6741291BEDE1617A982 /* FolderGrantServiceTests.swift */,
@@ -590,6 +593,7 @@
 				C614CA85AD0F3371AD5A166D /* DeviceLibraryTests.swift in Sources */,
 				F82371859BC05C1EB8E0915C /* DocumentKindTests.swift in Sources */,
 				354585E608A352E375B2A45E /* DocumentStoreOwnershipTests.swift in Sources */,
+				2A64BAA31C73AA93D38CC767 /* DocumentStoreRenameTests.swift in Sources */,
 				2C8469454ECB98BADC80580C /* DocumentStoreTests.swift in Sources */,
 				8B213ACD0974ABC5C0C934F1 /* DocumentsSchemaMigrationTests.swift in Sources */,
 				2033FA6445703627E4404F32 /* FileBridgeTests.swift in Sources */,

@@ -2,6 +2,40 @@ import Foundation
 import Observation
 import SwiftData
 
+/// Errors surfaced by `DocumentStore.rename(_:to:)`.
+enum DocumentRenameError: LocalizedError, Equatable {
+    /// The record indexes a file outside the app container; the store never
+    /// mutates files inside granted folders.
+    case externalFileNotRenameable
+    /// The name is empty after trimming whitespace.
+    case emptyName
+    /// The final filename exceeds the 255-byte filesystem limit.
+    case nameTooLong
+    /// The name contains a path separator (`/`) or volume separator (`:`).
+    case invalidCharacters
+    /// The name starts with a dot, which would hide the file.
+    case leadingDot
+    /// Another file already has the target name in the same directory.
+    case nameAlreadyExists(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .externalFileNotRenameable:
+            "This document is indexed from another location and can't be renamed here."
+        case .emptyName:
+            "Enter a name for the document."
+        case .nameTooLong:
+            "That name is too long."
+        case .invalidCharacters:
+            "The name can't contain \"/\" or \":\"."
+        case .leadingDot:
+            "The name can't start with a dot."
+        case .nameAlreadyExists:
+            "A document with that name already exists."
+        }
+    }
+}
+
 /// The document store service.
 ///
 /// Implemented as a `@MainActor` class (the brief allows actor OR @MainActor
@@ -125,6 +159,65 @@ final class DocumentStore {
         let descriptor = FetchDescriptor<DocumentRecord>()
         let records = try context.fetch(descriptor)
         return Set(records.map(\.fileURL.standardizedFileURL.path))
+    }
+
+    // MARK: - Rename
+
+    /// Renames an app-owned document: moves the file inside its directory,
+    /// then persists the record. The new name is the base name — the current
+    /// extension is preserved and appended (unless the input already ends
+    /// with it). Renaming to the current name is a no-op.
+    ///
+    /// Order of operations: file move first, record save second. On a save
+    /// failure the file is moved back and the record fields restored, so a
+    /// failed rename never leaves a half-renamed document.
+    func rename(_ record: DocumentRecord, to newBaseName: String) throws {
+        guard record.absolutePath == nil else {
+            throw DocumentRenameError.externalFileNotRenameable
+        }
+
+        let trimmed = newBaseName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { throw DocumentRenameError.emptyName }
+        guard !trimmed.hasPrefix(".") else { throw DocumentRenameError.leadingDot }
+        guard !trimmed.contains("/"), !trimmed.contains(":") else { throw DocumentRenameError.invalidCharacters }
+
+        let oldURL = fileBridge.absoluteURL(forRelativePath: record.relativePath)
+        let currentName = oldURL.lastPathComponent
+        let fileExtension = (currentName as NSString).pathExtension
+
+        var finalName = trimmed
+        if !fileExtension.isEmpty && !finalName.lowercased().hasSuffix(".\(fileExtension.lowercased())") {
+            finalName += ".\(fileExtension)"
+        }
+        guard finalName.utf8.count <= 255 else { throw DocumentRenameError.nameTooLong }
+        guard finalName != currentName else { return }
+
+        let newURL = oldURL.deletingLastPathComponent().appendingPathComponent(finalName)
+        guard !FileManager.default.fileExists(atPath: newURL.path) else {
+            throw DocumentRenameError.nameAlreadyExists(finalName)
+        }
+
+        try FileManager.default.moveItem(at: oldURL, to: newURL)
+
+        let previousDisplayName = record.displayName
+        let previousRelativePath = record.relativePath
+        record.displayName = finalName
+        record.relativePath = Self.relativePath(byReplacingLastComponentOf: record.relativePath, with: finalName)
+        do {
+            try save()
+        } catch {
+            try? FileManager.default.moveItem(at: newURL, to: oldURL)
+            record.displayName = previousDisplayName
+            record.relativePath = previousRelativePath
+            throw error
+        }
+    }
+
+    /// Replaces the last component of a container-relative path, keeping any
+    /// subfolders intact ("Folder/Doc.pdf" → "Folder/Renamed.pdf").
+    private static func relativePath(byReplacingLastComponentOf path: String, with name: String) -> String {
+        let directory = (path as NSString).deletingLastPathComponent
+        return directory.isEmpty ? name : directory + "/" + name
     }
 
     // MARK: - Lifecycle
