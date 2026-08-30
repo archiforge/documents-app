@@ -98,14 +98,21 @@ actor ThumbnailStore {
         generatedPageCounts[recordID] = pageCount
     }
 
-    /// Deletes cache entries whose filename is not in `keys`. Called from
-    /// startup recovery after records and disk have been reconciled.
-    func sweep(keeping keys: Set<String>) {
+    /// Deletes cache entries whose filename is not in `keys`, except entries
+    /// belonging to `preservingIDs` — records whose file could not be stat'd
+    /// (unknown ≠ vanished; e.g. a granted-folder file whose security scope
+    /// is not restored at sweep time). Called from startup recovery after
+    /// records and disk have been reconciled.
+    func sweep(keeping keys: Set<String>, preservingIDs: Set<UUID> = []) {
         guard let entries = try? FileManager.default.contentsOfDirectory(
             at: cacheDirectory,
             includingPropertiesForKeys: nil
         ) else { return }
-        for entry in entries where !keys.contains(entry.lastPathComponent) {
+        let preservedPrefixes = preservingIDs.map { "\($0.uuidString)-" }
+        for entry in entries {
+            let name = entry.lastPathComponent
+            if keys.contains(name) { continue }
+            if preservedPrefixes.contains(where: name.hasPrefix) { continue }
             try? FileManager.default.removeItem(at: entry)
         }
     }
@@ -184,14 +191,16 @@ actor ThumbnailStore {
                 let document = PDFDocument(url: fileURL),
                 let page = document.page(at: 0)
             else { return nil }
-            let bounds = page.bounds(for: .mediaBox)
+            // Render the crop box, not the media box: PDFs whose /CropBox is
+            // smaller than the /MediaBox would otherwise show margin content.
+            let bounds = page.bounds(for: .cropBox)
             let longestSide = max(bounds.width, bounds.height)
             let scale = longestSide > 0 ? min(1, CGFloat(maxPixelSize) / longestSide) : 1
             let size = CGSize(
                 width: max(1, bounds.width * scale),
                 height: max(1, bounds.height * scale)
             )
-            let thumbnail = page.thumbnail(of: size, for: .mediaBox)
+            let thumbnail = page.thumbnail(of: size, for: .cropBox)
             return Generated(image: thumbnail, pageCount: document.pageCount)
         case .image:
             let options: [CFString: Any] = [

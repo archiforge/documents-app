@@ -37,13 +37,21 @@ enum StartupRecovery {
 
         do {
             var keep: Set<String> = []
+            var unstatable: Set<UUID> = []
             for record in try fetchAll(store) {
                 let url = record.absolutePath.map { URL(fileURLWithPath: $0) }
                     ?? store.fileBridge.absoluteURL(forRelativePath: record.relativePath)
-                guard let mtime = ThumbnailStore.modificationDate(at: url) else { continue }
+                guard let mtime = ThumbnailStore.modificationDate(at: url) else {
+                    // Unknown ≠ vanished: the file may simply be unreadable
+                    // right now (e.g. a granted folder whose security scope
+                    // has not been restored yet). Keep its entries; the
+                    // device library prunes truly vanished files later.
+                    unstatable.insert(record.id)
+                    continue
+                }
                 keep.insert(ThumbnailStore.entryName(recordID: record.id, mtime: mtime))
             }
-            await thumbnails.sweep(keeping: keep)
+            await thumbnails.sweep(keeping: keep, preservingIDs: unstatable)
         } catch {
             recoveryLog.error("Thumbnail cache sweep failed: \(error.localizedDescription)")
         }

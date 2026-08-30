@@ -156,6 +156,28 @@ final class StartupRecoveryTests: XCTestCase {
         XCTAssertEqual(Set(entries), [currentKey])
     }
 
+    func testThumbnailEntryForUnstatableFileSurvivesSweep() async throws {
+        // A granted-folder record whose file cannot be stat'd yet (security
+        // scope not restored at sweep time): unknown ≠ vanished, so its
+        // cache entry must survive the sweep.
+        let missing = tempRoot.appendingPathComponent("External/Missing.pdf")
+        let record = try store.adoptFile(at: missing, absolutePath: missing.path)
+        try FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
+        let entryName = "\(record.id.uuidString)-12345.png"
+        try Data("thumbnail".utf8).write(to: cacheDir.appendingPathComponent(entryName))
+        try Data("stale".utf8).write(to: cacheDir.appendingPathComponent("stale-entry-1.png"))
+
+        await StartupRecovery.run(store: store, thumbnails: thumbnails)
+
+        let entries = try FileManager.default.contentsOfDirectory(atPath: cacheDir.path)
+        XCTAssertEqual(Set(entries), [entryName])
+        XCTAssertEqual(
+            try store.fetchRecent().map(\.id),
+            [record.id],
+            "Unstatable external records stay until the device library prunes them"
+        )
+    }
+
     func testThumbnailEntryForDisownedRecordIsSwept() async throws {
         let record = try makeRecord(named: "Gone.pdf")
         try FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)

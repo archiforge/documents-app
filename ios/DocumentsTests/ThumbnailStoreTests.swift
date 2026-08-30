@@ -171,6 +171,23 @@ final class ThumbnailStoreTests: XCTestCase {
         XCTAssertFalse(entries.contains { $0.lastPathComponent == "stale-entry-1.png" })
     }
 
+    func testSweepPreservesEntriesForUnstatableRecords() async throws {
+        try FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
+        let preservedID = UUID()
+        let preservedName = "\(preservedID.uuidString)-12345.png"
+        try Data("keep".utf8).write(to: cacheDir.appendingPathComponent(preservedName))
+        try Data("stale".utf8).write(to: cacheDir.appendingPathComponent("stale-entry-1.png"))
+
+        await thumbnails.sweep(keeping: [], preservingIDs: [preservedID])
+
+        let entries = try FileManager.default.contentsOfDirectory(atPath: cacheDir.path)
+        XCTAssertEqual(
+            Set(entries),
+            [preservedName],
+            "Entries whose record cannot stat its file survive; unknown ≠ vanished"
+        )
+    }
+
     func testEvictionKeepsTheCacheWithinTheCap() async throws {
         let tiny = ThumbnailStore(cacheDirectory: cacheDir, maxCacheBytes: 7500)
         try FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)

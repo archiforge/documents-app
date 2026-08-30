@@ -1,6 +1,9 @@
 import Foundation
 import Observation
+import OSLog
 import SwiftData
+
+private let storeLog = Logger(subsystem: "com.docdeck.app", category: "store")
 
 /// Errors surfaced by `DocumentStore.rename(_:to:)`.
 enum DocumentRenameError: LocalizedError, Equatable {
@@ -206,7 +209,16 @@ final class DocumentStore {
         do {
             try save()
         } catch {
-            try? FileManager.default.moveItem(at: newURL, to: oldURL)
+            do {
+                try FileManager.default.moveItem(at: newURL, to: oldURL)
+            } catch let restoreError {
+                // Log-only: the original save failure is still rethrown, but
+                // a failed move-back leaves the file renamed while the record
+                // points at the old path, so the divergence must be visible.
+                storeLog.error(
+                    "Rename rollback failed for \(finalName): file stayed at \(newURL.path) — \(restoreError.localizedDescription)"
+                )
+            }
             record.displayName = previousDisplayName
             record.relativePath = previousRelativePath
             throw error
