@@ -25,11 +25,9 @@ struct TrashView: View {
                     VStack(alignment: .leading, spacing: 3) {
                         Text(document.displayName)
                             .lineLimit(1)
-                        if let trashedAt = document.trashedAt {
-                            Text("Trashed \(trashedAt, format: .relative(presentation: .named))")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
+                        Text(retentionLabel(for: document))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
                 }
                 .swipeActions(edge: .leading) {
@@ -91,5 +89,17 @@ struct TrashView: View {
             Text("Items in the trash will be permanently deleted. This cannot be undone.")
         }
         .storeFailureAlert(message: $failureText)
+    }
+
+    // MARK: - Labels
+
+    /// Days-remaining caption under the row name. Legacy rows without a
+    /// trashed date are purged on launch, so they only flash briefly.
+    private func retentionLabel(for document: DocumentRecord) -> String {
+        guard let trashedAt = document.trashedAt else { return "Deletes today" }
+        let days = TrashPolicy.remainingDays(trashedAt: trashedAt, now: Date())
+        if days <= 0 { return "Deletes today" }
+        if days == 1 { return "Deletes in 1 day" }
+        return "Deletes in \(days) days"
     }
 }

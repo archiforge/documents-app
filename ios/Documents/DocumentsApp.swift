@@ -1,5 +1,8 @@
+import OSLog
 import SwiftData
 import SwiftUI
+
+private let launchLog = Logger(subsystem: "com.docdeck.app", category: "launch")
 
 @main
 struct DocumentsApp: App {
@@ -26,6 +29,14 @@ struct DocumentsApp: App {
                     // Remove temp artifacts left behind by previous runs
                     // (crash, force quit) that the in-registry cleanup missed.
                     TempArtifactTracker.sweepAtLaunch()
+
+                    // Enforce the 30-day trash retention window. A failure
+                    // here must never block launch; the purge retries next run.
+                    do {
+                        try store.purgeExpiredTrash()
+                    } catch {
+                        launchLog.error("Trash purge failed at launch: \(error.localizedDescription)")
+                    }
                 }
         }
         .modelContainer(container)

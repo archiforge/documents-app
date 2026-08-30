@@ -18,6 +18,11 @@ final class DocumentStore {
     /// back in-memory state) without relying on store-specific quirks.
     var saveFailureForTesting: (any Error)?
 
+    /// Test seam: the clock every mutation reads. Defaults to the wall
+    /// clock; tests inject a fixed date so time-dependent behavior (trash
+    /// retention, recents) is deterministic.
+    var now: () -> Date = Date.init
+
     init(context: ModelContext, fileBridge: FileBridge = FileBridge()) {
         self.context = context
         self.fileBridge = fileBridge
@@ -35,6 +40,8 @@ final class DocumentStore {
             relativePath: fileBridge.relativePath(for: imported.url),
             kind: DocumentKind(filename: imported.url.lastPathComponent),
             sizeBytes: imported.sizeBytes,
+            lastOpenedAt: now(),
+            importedAt: now(),
             provenance: .imported
         )
         context.insert(record)
@@ -56,6 +63,8 @@ final class DocumentStore {
             relativePath: fileBridge.relativePath(for: url),
             kind: DocumentKind(filename: url.lastPathComponent),
             sizeBytes: FileBridge.fileSize(at: url),
+            lastOpenedAt: now(),
+            importedAt: now(),
             provenance: provenance
         )
         context.insert(record)
@@ -76,6 +85,8 @@ final class DocumentStore {
             relativePath: fileBridge.relativePath(for: url),
             kind: DocumentKind(filename: url.lastPathComponent),
             sizeBytes: FileBridge.fileSize(at: url),
+            lastOpenedAt: now(),
+            importedAt: now(),
             provenance: provenance,
             absolutePath: absolutePath
         )
@@ -99,6 +110,8 @@ final class DocumentStore {
             relativePath: fileBridge.relativePath(for: url),
             kind: DocumentKind(filename: url.lastPathComponent),
             sizeBytes: FileBridge.fileSize(at: url),
+            lastOpenedAt: now(),
+            importedAt: now(),
             provenance: .created
         )
         context.insert(record)
@@ -121,7 +134,7 @@ final class DocumentStore {
     /// state never diverge silently.
     func recordOpen(_ record: DocumentRecord) throws {
         let previous = record.lastOpenedAt
-        record.lastOpenedAt = .now
+        record.lastOpenedAt = now()
         do {
             try save()
         } catch {
@@ -147,7 +160,7 @@ final class DocumentStore {
         let previousTrashed = record.isTrashed
         let previousDate = record.trashedAt
         record.isTrashed = true
-        record.trashedAt = .now
+        record.trashedAt = now()
         do {
             try save()
         } catch {
@@ -211,6 +224,26 @@ final class DocumentStore {
         for record in try fetchTrash() {
             try delete(record)
         }
+    }
+
+    /// Permanently deletes trashed records whose retention window
+    /// (`TrashPolicy`) has elapsed, and returns how many were purged.
+    ///
+    /// A record trashed exactly at the boundary survives; only strictly older
+    /// records expire. Legacy rows without a `trashedAt` count as expired.
+    /// Deletion goes through `delete(_:)`, so external records are disowned
+    /// without touching their files.
+    @discardableResult
+    func purgeExpiredTrash() throws -> Int {
+        let cutoff = now().addingTimeInterval(-TrashPolicy.retentionInterval)
+        let expired = try fetchTrash().filter { record in
+            guard let trashedAt = record.trashedAt else { return true }
+            return trashedAt < cutoff
+        }
+        for record in expired {
+            try delete(record)
+        }
+        return expired.count
     }
 
     // MARK: - Queries
