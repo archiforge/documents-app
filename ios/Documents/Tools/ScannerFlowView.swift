@@ -11,9 +11,10 @@ struct OCRResult: Identifiable {
 
 /// Drives one scanner session:
 ///
-/// 1. the camera opens immediately (no landing page),
-/// 2. confirming a capture (the checkmark) hands the pages back and a save
-///    chooser offers Save as PDF / Save as Image (test papers add
+/// 1. the Tools tab opens the camera directly; this flow then takes over
+///    with the captured pages (seeded via `initialPages`), or opens the
+///    camera itself for later re-entry (retake, scan more, ID-card back),
+/// 2. a save chooser offers Save as PDF / Save as Image (test papers add
 ///    Save as Text); the choice stores the scan and shows the saved screen,
 /// 3. cancelling the chooser keeps the captured pages in the preview
 ///    (retake / scan-more / continue → confirm screen with
@@ -30,6 +31,11 @@ struct OCRResult: Identifiable {
 /// teardown and strands the flow on the black camera backdrop.
 struct ScannerFlowView: View {
     let mode: ScanMode
+    /// Pages captured by the Tools tab's direct camera pass. When present
+    /// the flow starts at the preview stage (or reopens the camera for an
+    /// ID-card back side) instead of presenting its own camera first.
+    var initialPages: [UIImage] = []
+    var initialFrontPages: [UIImage] = []
 
     @Environment(DocumentStore.self) private var store
     @Environment(\.dismiss) private var dismiss
@@ -146,7 +152,22 @@ struct ScannerFlowView: View {
                 showScanner = false
                 fail(error.localizedDescription)
             }
-            openCamera()
+            if !initialPages.isEmpty || !initialFrontPages.isEmpty {
+                pages = initialPages
+                frontPages = initialFrontPages
+                if pages.isEmpty {
+                    // ID card: the front was captured by the Tools tab's
+                    // direct pass; this flow reopens the camera for the back.
+                    openCamera()
+                } else {
+                    stage = .preview
+                    pendingSaveChoice = true
+                    scanTrace("seeded with \(pages.count) captured page(s); offering save choice")
+                    showSaveChooser = true
+                }
+            } else {
+                openCamera()
+            }
         }
         .onDisappear {
             // Backstop: whatever preview/share artifacts are still tracked

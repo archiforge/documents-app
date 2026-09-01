@@ -12,7 +12,14 @@ struct ToolsTab: View {
 
     @State private var route: ToolRoute?
     @State private var showNewDocument = false
-    @State private var scanMode: ScanMode?
+    /// The direct camera pass: presented first on a scan-tool tap so the
+    /// camera is the first thing on screen. `ScannerFlowView` takes over
+    /// with the captured pages once this cover is fully gone.
+    @State private var scanRequest: ScanEntryRequest?
+    @State private var entryPass: ScanEntryPass?
+    @State private var flowEntry: ScanFlowEntry?
+    @State private var showCameraUnavailable = false
+    @State private var showScanNoPages = false
     @State private var showCompress = false
     @State private var showExtract = false
     @State private var presentedDocument: PresentedDocument?
@@ -57,8 +64,19 @@ struct ToolsTab: View {
                     presentedDocument = created
                 }
             }
-            .fullScreenCover(item: $scanMode) { mode in
-                ScannerFlowView(mode: mode) { result in
+            .fullScreenCover(item: $scanRequest, onDismiss: { scanEntryClosed() }) { request in
+                if let pass = entryPass {
+                    ScanEntryCameraCover(pass: pass)
+                } else {
+                    Color.black.ignoresSafeArea()
+                }
+            }
+            .fullScreenCover(item: $flowEntry) { entry in
+                ScannerFlowView(
+                    mode: entry.mode,
+                    initialPages: entry.pages,
+                    initialFrontPages: entry.frontPages
+                ) { result in
                     presentedDocument = result
                 }
             }
@@ -86,6 +104,32 @@ struct ToolsTab: View {
             } message: { message in
                 Text(message.body)
             }
+            .alert("Camera unavailable", isPresented: $showCameraUnavailable) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("The document scanner needs a physical camera. Run Documents on an iPhone or iPad to scan.")
+            }
+            .alert("Scan Not Saved", isPresented: $showScanNoPages) {
+                Button("Try Again") {
+                    guard let mode = entryPass?.mode else { return }
+                    entryPass = makeEntryPass(mode: mode)
+                    scanRequest = ScanEntryRequest(mode: mode)
+                }
+                Button("Cancel", role: .cancel) { entryPass = nil }
+            } message: {
+                Text("The scanner closed without delivering a page, so nothing was stored. Try the scan again.")
+            }
+            .alert(
+                "Scan failed",
+                isPresented: Binding(
+                    get: { entryPass?.failureMessage != nil },
+                    set: { if !$0 { entryPass?.clearFailure() } }
+                )
+            ) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(entryPass?.failureMessage ?? "")
+            }
             .documentViewer(item: $presentedDocument)
         }
     }
@@ -109,7 +153,7 @@ struct ToolsTab: View {
         case .newDocument:
             showNewDocument = true
         case .scan(let mode):
-            scanMode = mode
+            openScanEntry(mode: mode)
         case .pdfTools:
             route = .pdfTools
         case .formatConvert:
@@ -129,5 +173,75 @@ struct ToolsTab: View {
         pendingDocument = document
         toolMessage = message
         showToolMessage = true
+    }
+
+    /// Presents the camera directly — no intermediate flow page. A fresh
+    /// `ScanEntryPass` owns this pass's session and captured state.
+    private func openScanEntry(mode: ScanMode) {
+        guard ScanningService.isCameraAvailable else {
+            showCameraUnavailable = true
+            return
+        }
+        entryPass = makeEntryPass(mode: mode)
+        scanRequest = ScanEntryRequest(mode: mode)
+    }
+
+    private func makeEntryPass(mode: ScanMode) -> ScanEntryPass {
+        let pass = ScanEntryPass(mode: mode)
+        pass.onCameraDismiss = { scanRequest = nil }
+        return pass
+    }
+
+    /// Runs when the direct camera cover is fully gone — the only safe
+    /// point to hand the capture to the flow, offer a retry, or reset.
+    private func scanEntryClosed() {
+        guard let pass = entryPass else { return }
+        pass.session.detach()
+        if pass.hasCapture {
+            flowEntry = ScanFlowEntry(
+                mode: pass.mode,
+                pages: pass.pages,
+                frontPages: pass.frontPages
+            )
+            return
+        }
+        if pass.scanDelivered {
+            // Deliberate cancel or an empty delivery: nothing to show. Keep
+            // the pass — a failure message still needs to surface through
+            // the alert binding, and the next entry replaces it anyway.
+            return
+        }
+        // The scanner closed without delivering any callback: offer a retry
+        // instead of silently dropping the entry.
+        showScanNoPages = true
+    }
+}
+
+/// Item payload for the Tools tab's direct camera cover.
+struct ScanEntryRequest: Identifiable {
+    let id = UUID()
+    let mode: ScanMode
+}
+
+/// Item payload for the flow handoff after the direct camera pass captured
+/// pages (or an ID-card front side).
+struct ScanFlowEntry: Identifiable {
+    let id = UUID()
+    let mode: ScanMode
+    let pages: [UIImage]
+    let frontPages: [UIImage]
+}
+
+/// The direct camera pass cover: pure backdrop plus the scanner. VisionKit's
+/// own chrome provides the capture and cancel controls; the pass adds
+/// nothing on top.
+private struct ScanEntryCameraCover: View {
+    let pass: ScanEntryPass
+
+    var body: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+            DocumentScannerView(session: pass.session)
+        }
     }
 }
