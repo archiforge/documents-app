@@ -1,8 +1,7 @@
 import SwiftUI
 
-/// The horizontally scrolling format filter chips above the Recent list,
-/// matching the Android app's row: All / Scanned / DOC / XLS / PPT / PDF /
-/// OFD / TXT.
+/// The horizontally scrolling format filter chips above the Recent list:
+/// All / Scanned / PDF / DOC / EPUB / XLS / TXT (custom row, ledger #8).
 struct FormatFilterRow: View {
     @Binding var selection: FormatFilter
 

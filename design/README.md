@@ -43,7 +43,7 @@ or demo frame (`m_*` main, `sm_*` scan).
 | **R3.1** | Three tabs Recent/Tools/Manage; Favorites→context action, Cloud dropped, Browse→Manage▸Sources | demo `m_1`; plan item 3 | `Home/HomeView.swift:6` still 5 tabs — rebase target |
 | R3.2 | Toolbar icons: search · sort · settings | `m_1` | partial (settings gear exists in Settings flow, not on Recent toolbar) |
 | R3.3 | Large title "Recent" + "N in total" | `m_1` | `Home/RecentTab.swift` (count section exists) |
-| **R3.4** | Chips All/Scanned/DOC/XLS/PPT/PDF/OFD/TXT, bold+underline selected, per-filter empty states | `m_1/m_2` | `Core/DocumentStore/FormatFilter.swift`, `Home/FormatFilterRow.swift` (underline style pending) |
+| **R3.4** | Chips All/Scanned/PDF/DOC/EPUB/XLS/TXT (custom row, ledger #8), bold+underline selected, per-filter empty states | ledger #8 (supersedes `m_1/m_2` chip row) | `Core/DocumentStore/FormatFilter.swift`, `Home/FormatFilterRow.swift` (underline style pending) |
 | **R3.5** | Collapsible date groups "Today \| 1 item" | `m_1` | `Core/DocumentStore/DateGrouping.swift` |
 | **R3.6** | Row: 48pt thumb, name, meta (rel time · size · N pages), provenance "From “Scan document”", star | `m_1` | `Home/DocumentRow.swift`, `Core/Thumbnails/ThumbnailView.swift` |
 | R3.7 | FAB (pencil) → scan / new document (action TBD, see ⚠ below) | `m_1` | none |
@@ -94,6 +94,7 @@ or demo frame (`m_*` main, `sm_*` scan).
 | 5 | VisionKit native camera chrome replaces external scanner package (R5.1) | no third-party scanner app on iOS; platform substitution |
 | 6 | Underline-selected chips, iOS glass tab bar, system fonts (all frames) | iOS-native styling over Android pixel copy; clean-room rule |
 | 7 | Sort menu (R3.12): Sort By Date / Name / Size / Type + Descending/Ascending, default Date ↓ where **Date = the file's actual creation date** (`createdAt` from file metadata, backfilled at launch, falls back to `importedAt`); day groups only while sorting by date | no recorded demo UI; product decision 2026-09-01, refined same day from last-opened → import time → real file creation date; row hints show the same date |
+| 8 | Recent chip row (R3.4) is All/Scanned/PDF/DOC/EPUB/XLS/TXT; APK's PPT and OFD chips removed, EPUB chip added | user decision 2026-09-01; PPT/OFD documents remain listed under All, just unfilterable; EPUB kind shipped in `40514eb` had no chip |
 
 ## Working agreements
 

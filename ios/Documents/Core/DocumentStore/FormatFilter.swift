@@ -1,15 +1,16 @@
 import Foundation
 
-/// The format filter chips on the Recent screen, in the Android app's order:
-/// All / Scanned / DOC / XLS / PPT / PDF / OFD / TXT.
+/// The format filter chips on the Recent screen. Custom row (product
+/// decision 2026-09-01, divergence ledger #8): All / Scanned / PDF / DOC /
+/// EPUB / XLS / TXT — the APK's PPT and OFD chips were dropped and EPUB
+/// added; those kinds remain listed under All.
 enum FormatFilter: String, CaseIterable, Identifiable, Hashable, Sendable {
     case all
     case scanned
-    case doc
-    case xls
-    case ppt
     case pdf
-    case ofd
+    case doc
+    case epub
+    case xls
     case txt
 
     var id: String { rawValue }
@@ -18,11 +19,10 @@ enum FormatFilter: String, CaseIterable, Identifiable, Hashable, Sendable {
         switch self {
         case .all: "All"
         case .scanned: "Scanned"
-        case .doc: "DOC"
-        case .xls: "XLS"
-        case .ppt: "PPT"
         case .pdf: "PDF"
-        case .ofd: "OFD"
+        case .doc: "DOC"
+        case .epub: "EPUB"
+        case .xls: "XLS"
         case .txt: "TXT"
         }
     }
@@ -35,16 +35,14 @@ enum FormatFilter: String, CaseIterable, Identifiable, Hashable, Sendable {
             true
         case .scanned:
             provenance == .scanned
-        case .doc:
-            kind == .word
-        case .xls:
-            kind == .excel
-        case .ppt:
-            kind == .powerpoint
         case .pdf:
             kind == .pdf
-        case .ofd:
-            kind == .ofd
+        case .doc:
+            kind == .word
+        case .epub:
+            kind == .epub
+        case .xls:
+            kind == .excel
         case .txt:
             kind == .text || kind == .markdown
         }

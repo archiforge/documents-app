@@ -2,8 +2,8 @@ import SwiftData
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Recents list with the Android app's format filter chips
-/// (All / Scanned / DOC / XLS / PPT / PDF / OFD / TXT), a search bar scoped
+/// Recents list with format filter chips
+/// (All / Scanned / PDF / DOC / EPUB / XLS / TXT), a search bar scoped
 /// to the active chip, day grouping ("Today · 4 files"), and per-row origin
 /// captions.
 struct RecentTab: View {
