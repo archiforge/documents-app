@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Documents — Screen Design Board v1</title>
+<style>
+  :root{
+    --accent:#2C75E6; --red:#FF3B30; --green:#34C759; --star:#F5B301;
+    --ink:#1C1C1E; --sub:#8E8E93; --hair:rgba(60,60,67,.29);
+    --canvas:#141416; --card:#1D1D20; --card2:#232327; --line:#2E2E33;
+    --txt:#ECECEF; --dim:#9A9AA2;
+    --ok:#3FB950; --next:#4493F8; --plan:#D29922; --warn:#A371F7; --built:#8B949E;
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  body{background:var(--canvas); color:var(--txt);
+       font:-apple-system-body; font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue",Arial,sans-serif;
+       font-size:14px; line-height:1.45; padding:32px 40px 80px}
+  .wrap{max-width:1760px; margin:0 auto}
+
+  /* ---------- header ---------- */
+  header h1{font-size:26px; font-weight:800; letter-spacing:-.3px}
+  header .sub{color:var(--dim); margin-top:6px; max-width:110ch}
+  header .sub b{color:var(--txt)}
+  .legend{display:flex; flex-wrap:wrap; gap:8px; margin-top:14px}
+  .chip{display:inline-flex; align-items:center; gap:6px; border:1px solid var(--line);
+        border-radius:999px; padding:3px 11px; font-size:12px; font-weight:600; color:var(--txt)}
+  .dot{width:8px; height:8px; border-radius:50%}
+  .c-ok{background:var(--ok)} .c-next{background:var(--next)} .c-plan{background:var(--plan)}
+  .c-warn{background:var(--warn)} .c-built{background:var(--built)}
+  .callout{margin-top:18px; border:1px solid #3b3b44; background:#1a1a1f; border-radius:12px; padding:14px 16px; color:var(--dim); font-size:13px}
+  .callout b{color:var(--txt)} .callout code{background:#26262c; border-radius:5px; padding:1px 5px; font-size:12px}
+
+  /* ---------- sections ---------- */
+  section{margin-top:46px}
+  .sechead{display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; border-bottom:1px solid var(--line); padding-bottom:10px; margin-bottom:22px}
+  .sechead h2{font-size:17px; font-weight:700}
+  .phasechip{font-size:11px; font-weight:700; letter-spacing:.4px; border-radius:6px; padding:2px 8px; text-transform:uppercase}
+  .ph-ok{background:rgba(63,185,80,.15); color:var(--ok)}
+  .ph-next{background:rgba(68,147,248,.15); color:var(--next)}
+  .ph-plan{background:rgba(210,153,34,.15); color:var(--plan)}
+  .ph-warn{background:rgba(163,113,247,.15); color:var(--warn)}
+  .secnote{width:100%; color:var(--dim); font-size:13px; margin-top:2px}
+  .secnote code{background:#26262c; border-radius:5px; padding:1px 5px; font-size:12px; color:var(--txt)}
+
+  .frames{display:flex; flex-wrap:wrap; gap:30px; align-items:flex-start}
+
+  /* ---------- frame cards ---------- */
+  figure.fc{width:302px}
+  figure.fc.wide{width:auto; max-width:100%}
+  figcaption{display:flex; align-items:center; gap:8px; margin-bottom:8px; font-size:13px}
+  figcaption b{font-weight:700}
+  .st{font-size:11px; font-weight:700; border-radius:5px; padding:2px 7px; letter-spacing:.3px}
+  .st.ok{background:rgba(63,185,80,.15); color:var(--ok)}
+  .st.next{background:rgba(68,147,248,.15); color:var(--next)}
+  .st.plan{background:rgba(210,153,34,.15); color:var(--plan)}
+  .st.built{background:rgba(139,148,158,.2); color:#C9D1D9}
+  .st.warn{background:rgba(163,113,247,.15); color:var(--warn)}
+
+  /* ---------- phone ---------- */
+  .phone{position:relative; width:302px; height:655px; border-radius:30px; overflow:hidden;
+         box-shadow:0 10px 30px rgba(0,0,0,.5); outline:1px solid #3a3a41}
+  .phone.light{background:#fff; color:var(--ink)}
+  .phone.dark{background:#000; color:#fff}
+
+  .sbar{height:30px; display:flex; align-items:center; justify-content:space-between; padding:0 18px; font-size:12px; font-weight:600}
+  .sbar .sig{display:flex; align-items:center; gap:5px; opacity:.9}
+  .notch{position:absolute; top:8px; left:50%; transform:translateX(-50%); width:74px; height:16px; border-radius:9px; background:#000}
+  .phone.light .notch{background:#0b0b0c}
+
+  .nav{padding:2px 16px 0}
+  .navrow{display:flex; justify-content:flex-end; gap:18px; align-items:center; min-height:26px}
+  .navrow .lead{margin-right:auto; display:flex; align-items:center; gap:4px; color:var(--accent); font-size:14px; font-weight:400}
+  .phone.dark .navrow .lead{color:#4493F8}
+  .navrow .lead.blue{color:var(--accent)}
+  .ic{width:17px; height:17px; display:inline-block; vertical-align:-3px}
+  .ic.sm{width:14px; height:14px}
+  .phone.light .ic{color:#3C3C43}
+  .phone.dark .ic{color:#D6D6DA}
+  .phone.light .ic.tint, .phone.dark .ic.tint{color:var(--accent)}
+  .ntitle{font-size:27px; font-weight:800; letter-spacing:-.4px; margin-top:8px}
+  .nsub{font-size:12px; margin-top:2px}
+  .phone.light .nsub{color:var(--sub)} .phone.dark .nsub{color:#98989E}
+
+  .chips{display:flex; gap:16px; padding:12px 16px 10px; overflow:hidden; white-space:nowrap; font-size:13px}
+  .chips span{color:var(--sub); flex:none; padding-bottom:6px}
+  .phone.dark .chips span{color:#98989E}
+  .chips .on{color:var(--ink); font-weight:700; border-bottom:2px solid var(--ink)}
+  .phone.dark .chips .on{color:#fff; border-color:#fff}
+
+  .list{position:absolute; top:0; left:0; right:0; bottom:0; overflow:hidden}
+  .content{position:absolute; inset:0; padding-top:0}
+
+  .grp{display:flex; align-items:center; gap:8px; padding:9px 16px 5px; font-size:12px; font-weight:600}
+  .phone.light .grp{color:var(--sub)} .phone.dark .grp{color:#B9B9C0}
+  .grp .sep{opacity:.45; font-weight:400} .grp .chv{margin-left:auto; opacity:.55}
+
+  .row{display:flex; gap:11px; padding:8px 16px; align-items:center; position:relative}
+  .row .thumb{width:46px; height:46px; border-radius:9px; flex:none; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:800; color:#fff}
+  .thumb.pdf{background:#E0524D} .thumb.doc{background:#4C84E0} .thumb.xls{background:#3FA45B}
+  .thumb.ppt{background:#E08A3C} .thumb.scan{background:#7A7A82} .thumb.gen{background:#A9A9B0}
+  .row .meta{min-width:0; flex:1}
+  .row .nm{font-size:13.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .row .cap{font-size:11px; margin-top:2px; display:flex; align-items:center; gap:4px}
+  .phone.light .row .cap{color:var(--sub)} .phone.dark .row .cap{color:#98989E}
+  .row .cap .prov{color:inherit; opacity:.85}
+  .row .dotsep{opacity:.5}
+  .row .star{margin-left:2px}
+  .phone.light .row .star{color:var(--star)} .phone.dark .row .star{color:#FFD60A}
+  .row .cb{width:21px; height:21px; border-radius:6px; border:1.6px solid #C7C7CC; flex:none; margin-left:4px}
+  .row .cb.on{background:var(--accent); border-color:var(--accent); display:flex; align-items:center; justify-content:center}
+
+  .fab{position:absolute; right:18px; bottom:86px; width:52px; height:52px; border-radius:50%; background:var(--accent);
+       display:flex; align-items:center; justify-content:center; box-shadow:0 6px 14px rgba(44,117,230,.4)}
+  .fab svg{width:22px; height:22px; color:#fff}
+
+  .tbar{position:absolute; left:0; right:0; bottom:0; height:64px; display:flex; align-items:flex-start;
+        padding-top:7px; backdrop-filter:blur(10px)}
+  .phone.light .tbar{background:rgba(249,249,249,.92); border-top:.5px solid var(--hair); color:#6C6C70}
+  .phone.dark .tbar{background:rgba(18,18,20,.94); border-top:.5px solid #26262A; color:#8E8E93}
+  .tbar .tb{flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; font-size:10px; font-weight:500}
+  .tbar .tb.on{color:var(--accent)} .phone.dark .tbar .tb.on{color:#fff}
+  .tbar svg{width:22px; height:22px}
+  .homebar{position:absolute; bottom:6px; left:50%; transform:translateX(-50%); width:118px; height:5px; border-radius:3px; background:currentColor; opacity:.85}
+  .phone.light .homebar{color:#000} .phone.dark .homebar{color:#fff}
+
+  .empty{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; padding-bottom:90px}
+  .empty .art{width:150px; height:110px; border-radius:14px; position:relative}
+  .empty .lbl{font-size:13px} .phone.light .empty .lbl{color:var(--sub)} .phone.dark .empty .lbl{color:#98989E}
+
+  /* selection bottom bar */
+  .abbar{position:absolute; left:0; right:0; bottom:0; height:76px; display:flex; align-items:flex-start; padding-top:10px;
+         background:rgba(249,249,249,.96); border-top:.5px solid var(--hair)}
+  .abbar .ab{flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; font-size:10px; color:#3C3C43}
+  .abbar .ab.off{opacity:.35}
+  .abbar svg{width:21px; height:21px}
+  .abbar .homebar{color:#000}
+
+  /* dialogs */
+  .scrim{position:absolute; inset:0; background:rgba(0,0,0,.42)}
+  .dlg{position:absolute; left:26px; right:26px; top:238px; background:#F4F4F6; border-radius:16px; padding:18px 18px 6px; box-shadow:0 18px 40px rgba(0,0,0,.35)}
+  .dlg h5{text-align:center; font-size:15px; font-weight:700}
+  .dlg .fld{margin-top:14px; border-bottom:2px solid var(--accent); padding-bottom:5px; display:flex; align-items:center; gap:6px}
+  .dlg .fld .val{font-size:14px; color:#2673E0; flex:1; white-space:nowrap; overflow:hidden}
+  .dlg .fld .ctr{font-size:10.5px; color:#9A9AA0}
+  .dlg .fld .x{color:#9A9AA0; font-size:12px; width:16px; height:16px; border-radius:50%; background:#E3E3E7; display:flex; align-items:center; justify-content:center}
+  .dlg .btns{display:flex; justify-content:space-around; padding:14px 0 12px}
+  .dlg .btns span{color:var(--accent); font-size:14px; font-weight:600}
+
+  .sheet{position:absolute; left:10px; right:10px; bottom:14px; background:#F6F6F8; border-radius:14px; overflow:hidden}
+  .sheet .it{display:flex; justify-content:center; padding:15px; font-size:15px; color:var(--accent); border-bottom:.5px solid var(--hair); font-weight:400}
+  .sheet .it.dmg{color:var(--red)}
+  .sheet .cn{padding:15px; text-align:center; font-size:15px; font-weight:700; color:var(--accent); background:#fff; margin-top:8px}
+
+  /* cards (Tools / Manage) */
+  .body-pad{position:absolute; inset:0; overflow:hidden; padding:0 16px}
+  .card{background:#fff; border-radius:13px; margin-top:12px; overflow:hidden}
+  .bg-grouped{background:#F2F2F7}
+  .phone.dark .bg-grouped, .phone.darkbg{background:#000}
+  .card .crow{display:flex; align-items:center; gap:12px; padding:11px 14px; font-size:13.5px; font-weight:500; position:relative}
+  .card .crow + .crow{border-top:.5px solid var(--hair)}
+  .card .crow .cic{width:29px; height:29px; border-radius:7px; flex:none; display:flex; align-items:center; justify-content:center; color:#fff}
+  .card .crow .cic svg{width:16px; height:16px}
+  .card .crow .sub2{font-size:11px; color:var(--sub); font-weight:400; margin-top:1px}
+  .card .crow .chev{margin-left:auto; color:#C7C7CC}
+  .card .crow .cnt{margin-left:auto; color:var(--sub); font-size:12px; display:flex; align-items:center; gap:4px}
+  .seclbl{font-size:12px; font-weight:600; color:var(--sub); margin:16px 16px 0; text-transform:none}
+
+  .hero{display:flex; gap:12px; padding:14px}
+  .hero .htx{flex:1}
+  .hero .htx b{font-size:14.5px}
+  .hero .htx .sub2{margin-top:3px}
+  .hero .hart{width:92px; height:64px; border-radius:10px; background:#3A3A40; position:relative; flex:none; display:flex; align-items:center; justify-content:center}
+  .hero .hart .bar{position:absolute; left:10px; right:10px; bottom:10px; height:5px; border-radius:3px; background:var(--accent)}
+  .toolcard{border-radius:13px; background:#fff; padding:12px 13px}
+  .toolcard .tic{width:30px; height:30px; border-radius:8px; display:flex; align-items:center; justify-content:center; color:#fff; margin-bottom:26px}
+  .toolcard .tic svg{width:16px; height:16px}
+  .toolcard b{font-size:13px; display:block; line-height:1.25}
+  .toolcard .sub2{margin-top:2px}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+
+  /* viewer */
+  .vpage{position:absolute; top:96px; left:34px; right:34px; bottom:60px; background:#EDEDF0; border-radius:4px; display:flex; align-items:center; justify-content:center; color:#B9B9C0; font-size:12px}
+
+  /* settings */
+  .frm{position:absolute; inset:0; background:#F2F2F7; padding-top:6px}
+  .frm .fs{margin-top:14px}
+  .frm .fs .lbl{font-size:12px; color:var(--sub); margin:0 32px 6px; text-transform:uppercase; font-weight:500}
+  .frm .fs .lbl:first-child{margin-top:0}
+
+  /* scan frames */
+  .cam{position:absolute; inset:0; background:linear-gradient(160deg,#2A2A2E 0%,#111114 55%,#1C1C20 100%)}
+  .cam .paper{position:absolute; left:66px; top:120px; width:170px; height:230px; background:#E9E5DC; border-radius:3px; transform:rotate(-2deg); box-shadow:0 8px 22px rgba(0,0,0,.5)}
+  .cam .pill{position:absolute; top:64px; left:50%; transform:translateX(-50%); background:rgba(30,30,32,.85); color:#E8E8EC; font-size:11px; padding:5px 12px; border-radius:999px; white-space:nowrap}
+  .cam .corner{position:absolute; top:52px; display:flex; width:100%; justify-content:space-between; padding:0 18px}
+  .cam .corner .ic{color:#fff; width:20px; height:20px}
+  .cam .bottom{position:absolute; bottom:26px; left:0; right:0; display:flex; align-items:center; justify-content:space-evenly}
+  .shutter{width:62px; height:62px; border-radius:50%; border:4px solid #fff; display:flex; align-items:center; justify-content:center}
+  .shutter i{width:48px; height:48px; border-radius:50%; background:#fff; display:block}
+  .cam .gicon{width:42px; height:42px; border-radius:50%; background:rgba(50,50,54,.9); display:flex; align-items:center; justify-content:center}
+  .cam .gicon svg{width:20px; height:20px; color:#fff}
+  .strip{position:absolute; bottom:112px; left:0; right:0; display:flex; gap:8px; padding:0 18px; align-items:flex-end}
+  .strip .sthumb{width:52px; height:68px; border-radius:7px; background:#DDD9CF; position:relative; flex:none; box-shadow:0 3px 8px rgba(0,0,0,.45)}
+  .strip .sthumb .n{position:absolute; top:-6px; right:-6px; background:var(--accent); color:#fff; font-size:9px; font-weight:700; border-radius:999px; min-width:16px; height:16px; display:flex; align-items:center; justify-content:center; padding:0 4px}
+  .donepill{position:absolute; bottom:36px; right:18px; background:var(--accent); color:#fff; font-size:13.5px; font-weight:600; padding:8px 18px; border-radius:999px}
+
+  /* result screen */
+  .banner{margin:10px 14px 0; background:#EAF7EE; border-radius:10px; padding:9px 12px; display:flex; align-items:center; gap:8px; font-size:12px; color:#1E7B3C}
+  .phone.dark .banner{background:#17251B; color:#5FBF77}
+  .banner .x{margin-left:auto; opacity:.6}
+  .pgwrap{padding:16px}
+  .pg{width:118px; height:158px; border-radius:10px; background:#EDEAE2; position:relative; overflow:hidden; box-shadow:0 4px 12px rgba(0,0,0,.18)}
+  .pg .nm{position:absolute; top:6px; left:6px; background:rgba(20,20,22,.75); color:#fff; font-size:9px; padding:2px 7px; border-radius:999px}
+  .pg .proc{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; color:#7d7a72; font-size:10px; background:rgba(237,234,226,.72)}
+  .spin{width:16px; height:16px; border-radius:50%; border:2px solid #b9b5aa; border-top-color:#6b675e; animation:sp 1s linear infinite}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .toolrow{position:absolute; left:0; right:0; bottom:0; height:74px; display:flex; background:#F9F9F9; border-top:.5px solid var(--hair)}
+  .toolrow .ti{flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; padding-top:12px; font-size:10px; color:#3C3C43}
+  .toolrow svg{width:20px; height:20px}
+
+  /* pins */
+  .pin{position:absolute; z-index:9; width:19px; height:19px; border-radius:50%; background:var(--next); color:#fff;
+       font-size:11px; font-weight:800; font-style:normal; display:flex; align-items:center; justify-content:center;
+       box-shadow:0 0 0 2px rgba(255,255,255,.35), 0 2px 6px rgba(0,0,0,.4)}
+  .pin.w{background:var(--warn)} .pin.g{background:var(--ok)} .pin.v{background:var(--warn)}
+
+  /* spec lists */
+  .speccard{margin-top:12px; background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px 14px; width:302px}
+  figure.fc.wide .speccard{width:100%}
+  .speccard h4{font-size:12px; font-weight:700; color:var(--dim); text-transform:uppercase; letter-spacing:.5px; margin-bottom:8px}
+  .speccard ol{list-style:none}
+  .speccard li{font-size:12.5px; color:#C9C9CF; padding:3px 0; display:flex; gap:8px}
+  .speccard li b{color:#fff; flex:none; font-weight:700}
+  .speccard li .id{color:var(--next); font-weight:700; flex:none; min-width:34px}
+  .speccard li .id.ok{color:var(--ok)} .speccard li .id.warn{color:var(--warn)}
+  .speccard li code{background:#26262c; border-radius:4px; padding:0 4px; font-size:11px}
+
+  /* token card / misc cards */
+  .panel{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px 20px}
+  .tokrow{display:flex; flex-wrap:wrap; gap:10px; margin-top:10px}
+  .tok{display:flex; align-items:center; gap:8px; background:var(--card2); border:1px solid var(--line); border-radius:9px; padding:7px 10px; font-size:12px; color:#C9C9CF}
+  .tok i{width:16px; height:16px; border-radius:5px; display:inline-block; border:1px solid rgba(255,255,255,.18)}
+  .tok code{font-size:11px; color:#8B949E}
+  .panel h3{font-size:14px; font-weight:700; margin-bottom:4px}
+  .panel p{font-size:12.5px; color:var(--dim)}
+  .panel .cols{display:flex; gap:26px; flex-wrap:wrap; margin-top:14px}
+  .panel .col{min-width:240px}
+  .panel .col h5{font-size:12px; color:var(--dim); text-transform:uppercase; letter-spacing:.5px; margin-bottom:8px}
+  .panel ul{list-style:none}
+  .panel li{font-size:12.5px; color:#C9C9CF; padding:2.5px 0}
+  .panel li b{color:#fff}
+
+  /* legacy shell strip */
+  .shellstrip{display:flex; gap:14px; align-items:center; flex-wrap:wrap}
+  .minitab{display:flex; border-radius:12px; overflow:hidden; border:1px solid var(--line)}
+  .minitab .mt{padding:9px 16px; font-size:12px; color:var(--dim); display:flex; flex-direction:column; align-items:center; gap:3px}
+  .minitab .mt svg{width:17px; height:17px}
+  .minitab .mt.on{color:#fff; background:#26262C}
+  .strike{text-decoration:line-through; opacity:.6}
+  .arrow{color:var(--dim); font-size:16px}
+
+  /* flows */
+  .flow{display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin-top:14px}
+  .fnode{background:var(--card2); border:1px solid var(--line); border-radius:10px; padding:8px 12px; font-size:12.5px; color:#E6E6EA}
+  .fnode small{display:block; color:var(--dim); font-size:10.5px; margin-top:1px}
+  .fnode.hl{border-color:var(--next); box-shadow:0 0 0 1px var(--next) inset}
+  .fnode.dv{border-color:var(--warn); box-shadow:0 0 0 1px var(--warn) inset}
+  .farr{color:var(--dim); font-size:15px}
+
+  footer{margin-top:60px; color:#6E6E76; font-size:12px; border-top:1px solid var(--line); padding-top:16px}
+  footer code{background:#26262c; border-radius:4px; padding:0 4px}
+  .mb8{margin-bottom:8px} .mt8{margin-top:8px}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="11" cy="11" r="6.3"/><path d="M15.7 15.7L21 21"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/><circle cx="9.5" cy="7" r="1.9" fill="currentColor" stroke="none"/><circle cx="15" cy="12" r="1.9" fill="currentColor" stroke="none"/><circle cx="7.5" cy="17" r="1.9" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"><path d="M19.4 13a7.5 7.5 0 000-2l2.1-1.6-2-3.4-2.5 1a7.6 7.6 0 00-1.7-1L15 3.5h-4l-.3 2.5a7.6 7.6 0 00-1.7 1l-2.5-1-2 3.4L6.6 11a7.5 7.5 0 000 2l-2.1 1.6 2 3.4 2.5-1a7.6 7.6 0 001.7 1l.3 2.5h4l.3-2.5a7.6 7.6 0 001.7-1l2.5 1 2-3.4-2.1-1.6z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="8.4"/><path d="M12 7.5V12l3 2"/></symbol>
+  <symbol id="i-tools" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="4" y="4" width="6.6" height="6.6" rx="1.6"/><rect x="13.4" y="4" width="6.6" height="6.6" rx="1.6"/><rect x="4" y="13.4" width="6.6" height="6.6" rx="1.6"/><path d="M16.7 14v5.4M14 16.7h5.4"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M3.5 7.2c0-1 .8-1.9 1.9-1.9h4.1l2 2.3h7.1c1 0 1.9.8 1.9 1.9v8.3c0 1-.8 1.9-1.9 1.9H5.4c-1 0-1.9-.8-1.9-1.9V7.2z"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 5.5L8 12l6.5 6.5"/></symbol>
+  <symbol id="i-chev-r" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9.5 5.5L16 12l-6.5 6.5"/></symbol>
+  <symbol id="i-chev-u" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 14.5L12 8.5l6 6"/></symbol>
+  <symbol id="i-pencil" viewBox="0 0 24 24" fill="currentColor"><path d="M4.7 19.3l.9-3.6L16.2 5.1a2.2 2.2 0 013.1 3.1L8.7 18.8l-4 .5z"/></symbol>
+  <symbol id="i-share" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.2v11.3M12 3.2L8.6 6.6M12 3.2l3.4 3.4M7.2 9.5H6A1.8 1.8 0 004.2 11.3v8A1.8 1.8 0 006 21.1h12a1.8 1.8 0 001.8-1.8v-8A1.8 1.8 0 0018 9.5h-1.2"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9.7 7V5.4c0-.8.6-1.4 1.4-1.4h1.8c.8 0 1.4.6 1.4 1.4V7M6.3 7l.9 12.1c.1.9.8 1.5 1.7 1.5h6.2c.9 0 1.6-.6 1.7-1.5L17.7 7"/></symbol>
+  <symbol id="i-move" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="6.5" width="9.5" height="13" rx="1.6"/><path d="M13.5 13h7.2m0 0l-2.6-2.6M20.7 13l-2.6 2.6"/></symbol>
+  <symbol id="i-more" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24" fill="currentColor"><path d="M12 3.6l2.5 5.1 5.6.8-4 4 .9 5.6-5-2.7-5 2.7.9-5.6-4-4 5.6-.8z"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="7" height="7" rx="1.4"/><rect x="13" y="4" width="7" height="7" rx="1.4"/><rect x="4" y="13" width="7" height="7" rx="1.4"/><rect x="13" y="13" width="7" height="7" rx="1.4"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 6.5h11M9 12h11M9 17.5h11"/><path d="M4.5 6.5h.01M4.5 12h.01M4.5 17.5h.01" stroke-width="2.6"/></symbol>
+  <symbol id="i-doc" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M6 3.8h8l4 4v12.4H6V3.8z"/><path d="M14 3.8v4h4"/></symbol>
+  <symbol id="i-image" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="4" y="5" width="16" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M4.5 17.5l4.8-4.6 3.2 3 2.7-2.5 4.3 4.1"/></symbol>
+  <symbol id="i-import" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="6" width="13" height="13" rx="2"/><path d="M3.9 17.4l4.3-4.1 3 2.8 2.5-2.3 2.7 2.6"/><circle cx="8.2" cy="10.3" r="1.4"/><path d="M18.5 3.5v5M16 6h5"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="5.5" y="10.5" width="13" height="9.5" rx="2"/><path d="M8.5 10.5V8a3.5 3.5 0 017 0v2.5"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 19.5l3.6-.9L19 7.7a2 2 0 00-2.8-2.8L5.4 15.9l-.9 3.6z"/><path d="M14.5 6.5l2.8 2.8"/></symbol>
+  <symbol id="i-sig" viewBox="0 0 24 24" fill="currentColor"><rect x="1" y="14" width="3" height="6" rx="1"/><rect x="6" y="11" width="3" height="9" rx="1"/><rect x="11" y="8" width="3" height="12" rx="1"/><rect x="16" y="5" width="3" height="15" rx="1"/></symbol>
+  <symbol id="i-wifi" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 10.5a11.5 11.5 0 0116 0M7 13.8a7.5 7.5 0 0110 0"/><circle cx="12" cy="17.5" r="1.4" fill="currentColor" stroke="none"/></symbol>
+  <symbol id="i-batt" viewBox="0 0 28 14" fill="none" stroke="currentColor"><rect x="1" y="1.5" width="21" height="11" rx="3.2" stroke-width="1.4" opacity=".5"/><rect x="3" y="3.5" width="14" height="7" rx="1.8" fill="currentColor" stroke="none"/><path d="M24.5 5v4" stroke-width="2" stroke-linecap="round" opacity=".5"/></symbol>
+</defs></svg>
+
+<div class="wrap">
+
+<header>
+  <h1>Documents — Screen Design Board <span style="color:var(--dim);font-weight:600;font-size:15px">v1 · 2026-08-30</span></h1>
+  <p class="sub">Target UI for every screen, so implementation doesn't diverge. Visual reference: recorded demo frames
+  (<code>logs/frames-main/</code>, <code>logs/frames-scan/</code>) re-expressed with iOS-26-native styling (semantic colors, SF symbols,
+  Liquid-Glass tab bar). Requirement IDs <b>R&lt;phase&gt;.&lt;n&gt;</b> are minted here — the plan of record has no formal IDs; see
+  <b>design/README.md</b> for the screen ↔ phase ↔ requirement ↔ code mapping.</p>
+  <div class="legend">
+    <span class="chip"><i class="dot c-ok"></i>done</span>
+    <span class="chip"><i class="dot c-next"></i>next up (P3)</span>
+    <span class="chip"><i class="dot c-plan"></i>planned</span>
+    <span class="chip"><i class="dot c-warn"></i>decision / divergence ⚠</span>
+    <span class="chip"><i class="dot c-built"></i>as-built today</span>
+  </div>
+  <div class="callout">
+    <b>Plan-of-record caveats.</b> The revised phased plan (3 tabs, P0/P1 done, P3 = Recent parity) was approved in-session and survives
+    only in the project memory file — it is <b>not committed to the repo</b>. <code>analysis/IOS_PLAN.md</code> §6 phases are the superseded
+    five-tab plan. Phase 2 has no recorded definition. Labels <b>P4–P7</b> below are inferred from the plan's sequence items 4–7.
+    IDs R0.x–R6.x were minted for this board. Recommended follow-up: commit the phase list + this ID scheme into <code>analysis/</code>.
+  </div>
+</header>
+
+<!-- ============ 00 FOUNDATIONS ============ -->
+<section id="foundations">
+  <div class="sechead"><span class="phasechip ph-ok">foundations</span><h2>Design tokens — single source for all screens</h2>
+    <p class="secnote">Matches the code today (no custom colors/fonts): accent <code>AccentColor</code> ≈ #2C75E6, semantic system colors, system text styles. Dark mode comes free from semantic tokens — see the dark parity frame in §02.</p>
+  </div>
+  <div class="frames">
+    <div class="panel wide" style="flex:1; min-width:640px">
+      <div class="cols">
+        <div class="col">
+          <h5>Color</h5>
+          <div class="tokrow">
+            <span class="tok"><i style="background:#2C75E6"></i>accent <code>#2C75E6</code></span>
+            <span class="tok"><i style="background:#F2F2F7"></i>grouped bg</span>
+            <span class="tok"><i style="background:#FFFFFF"></i>card / list bg</span>
+            <span class="tok"><i style="background:#8E8E93"></i>secondary label</span>
+            <span class="tok"><i style="background:#FF3B30"></i>destructive</span>
+            <span class="tok"><i style="background:#F5B301"></i>favorite star</span>
+            <span class="tok"><i style="background:#34C759"></i>success banner</span>
+            <span class="tok"><i style="background:#1C1C1E"></i>dark: cards #1C1C1E, bg #000</span>
+          </div>
+        </div>
+        <div class="col">
+          <h5>Type (system styles only)</h5>
+          <ul>
+            <li><b>Large title</b> — 27–28 bold ("Recent", "Tools", "Manage")</li>
+            <li><b>Row name</b> — body semibold · <b>meta/caption</b> — footnote/caption2</li>
+            <li><b>Chip</b> — subheadline; selected = semibold + underline</li>
+            <li><b>Section labels</b> — footnote secondary ("File conversion", "AI tools")</li>
+          </ul>
+        </div>
+        <div class="col">
+          <h5>Shape &amp; spacing (already in code)</h5>
+          <ul>
+            <li>Document thumbnail <b>48pt r8</b> (kind-colored glyph fallback)</li>
+            <li>Tools tile <b>56pt r14</b> · cards <b>r12–13</b> · chips capsule</li>
+            <li>Scan thumbs: strip <b>52×68 r6</b> · grid <b>100×136 r10</b></li>
+            <li>Row height ≈ 64 · screen h-padding 16 · grid gap 16</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 01 SHELL ============ -->
+<section id="shell">
+  <div class="sechead"><span class="phasechip ph-next">P3 · R3.1</span><h2>App shell — three tabs</h2>
+    <p class="secnote">Recorded truth: exactly <b>Recent / Tools / Manage</b>. Current code (<code>ios/Documents/Home/HomeView.swift:6</code>) still ships the legacy five-tab shell — Phase 3 rebases it. Each tab keeps its own <code>NavigationStack</code> inside the shared <code>TabView</code>; standard iOS tab styling (accent tint, glass bar), icons clock / grid⁺ / folder as recorded.</p>
+  </div>
+  <div class="frames">
+    <div class="panel" style="flex:1; min-width:560px">
+      <h3 class="mb8">Target tab bar (every screen)</h3>
+      <div class="shellstrip">
+        <div class="minitab">
+          <span class="mt on"><svg class="ic"><use href="#i-clock"/></svg>Recent</span>
+          <span class="mt"><svg class="ic"><use href="#i-tools"/></svg>Tools</span>
+          <span class="mt"><svg class="ic"><use href="#i-folder"/></svg>Manage</span>
+        </div>
+        <span class="arrow">←</span>
+        <div class="minitab" style="opacity:.55">
+          <span class="mt">Recent</span><span class="mt strike">Favorites</span><span class="mt">Tools</span><span class="mt strike">Cloud</span><span class="mt strike">Browse</span>
+        </div>
+        <span style="font-size:12px; color:var(--dim); max-width:300px">legacy 5-tab shell (as-built today) is superseded</span>
+      </div>
+      <div class="speccard" style="width:100%; margin-top:16px">
+        <h4>Migration of legacy tabs</h4>
+        <ol>
+          <li><span class="id">R3.1</span><span><b>Recent</b> — stays, becomes the only document list (P3, this board §02)</span></li>
+          <li><span class="id">R3.1</span><span><b>Favorites</b> tab → star <i>context action / swipe</i> on rows; no tab</span></li>
+          <li><span class="id">R3.1</span><span><b>Cloud</b> stub tab → dropped (no recorded cloud feature for iOS)</span></li>
+          <li><span class="id">R4.2</span><span><b>Browse</b> → moves under <b>Manage ▸ Sources</b> (granted folders + imports)</span></li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 02 RECENT ============ -->
+<section id="p3-recent">
+  <div class="sechead"><span class="phasechip ph-next">Phase 3 · next up</span><h2>Recent tab — visual &amp; behavioral parity</h2>
+    <p class="secnote">Anchors: plan sequence item 3 (memory plan-of-record), <code>analysis/REPORT.md</code> §3.1, demo frames <code>m_1–m_5</code>. Today's <code>RecentTab</code> already has chips/groups/rows/thumbnails — Phase 3 adds toolbar actions, search/sort, selection + bulk bar, rename UI, FAB, and rebases the shell.</p>
+  </div>
+  <div class="frames">
+
+    <figure class="fc">
+      <figcaption><b>Recent · populated</b> <span class="st next">P3 ▶ next</span></figcaption>
+      <div class="phone light">
+        <div class="sbar"><span>9:41</span><span class="sig"><svg class="ic sm"><use href="#i-sig"/></svg><svg class="ic sm"><use href="#i-wifi"/></svg><svg style="width:22px;height:12px"><use href="#i-batt"/></svg></span></div>
+        <div class="nav">
+          <div class="navrow"><svg class="ic"><use href="#i-search"/></svg><svg class="ic"><use href="#i-sliders"/></svg><svg class="ic"><use href="#i-gear"/></svg></div>
+          <div class="ntitle">Recent</div><div class="nsub">226 in total</div>
+        </div>
+        <div class="chips"><span class="on">All</span><span>Scanned</span><span>DOC</span><span>XLS</span><span>PPT</span><span>PDF</span><span>OFD</span><span>TXT</span></div>
+        <div class="grp">Today <span class="sep">|</span> 1 item <svg class="ic sm chv"><use href="#i-chev-u"/></svg></div>
+        <div class="row"><div class="thumb pdf">PDF</div><div class="meta"><div class="nm">System Design Playbook.pdf</div><div class="cap"><svg class="ic sm"><use href="#i-clock"/></svg>2 h ago <span class="dotsep">·</span> 1.2 MB <span class="dotsep">·</span> 12 pages</div></div></div>
+        <div class="grp">1 day ago <span class="sep">|</span> 3 items <svg class="ic sm chv"><use href="#i-chev-u"/></svg></div>
+        <div class="row"><div class="thumb scan">SCAN</div><div class="meta"><div class="nm">Scanned copy_260829_233128</div><div class="cap"><svg class="ic sm"><use href="#i-clock"/></svg>8 h ago <span class="dotsep">|</span> <span class="prov">From “Scan document”</span></div></div></div>
+        <div class="row"><div class="thumb scan">SCAN</div><div class="meta"><div class="nm">Scanned copy_260829_233041</div><div class="cap"><svg class="ic sm"><use href="#i-clock"/></svg>8 h ago <span class="dotsep">|</span> <span class="prov">From “Scan document”</span></div></div></div>
+        <div class="row"><div class="thumb scan">SCAN</div><div class="meta"><div class="nm">Scanned copy_260829_232943</div><div class="cap"><svg class="ic sm"><use href="#i-clock"/></svg>8 h ago <span class="dotsep">|</span> <span class="prov">From “Scan document”</span></div></div></div>
+        <div class="grp">26 Jun <span class="sep">|</span> 1 item <svg class="ic sm chv"><use href="#i-chev-u"/></svg></div>
+        <div class="row"><div class="thumb pdf">PDF</div><div class="meta"><div class="nm">FPS_HLD.pdf</div><div class="cap"><svg class="ic sm"><use href="#i-clock"/></svg>26 June <span class="dotsep">·</span> 3 pages</div></div><svg class="ic sm star"><use href="#i-star"/></svg></div>
+        <div class="grp">25 Jun <span class="sep">|</span> 1 item <svg class="ic sm chv"><use href="#i-chev-u"/></svg></div>
+        <div class="row"><div class="thumb doc">W</div><div class="meta"><div class="nm">Thank you for using Documents.docx</div><div class="cap"><svg class="ic sm"><use href="#i-clock"/></svg>25 June</div></div></div>
+        <div class="fab"><svg><use href="#i-pencil"/></svg></div>
+        <div class="tbar">
+          <span class="tb on"><svg><use href="#i-clock"/></svg>Recent</span>
+          <span class="tb"><svg><use href="#i-tools"/></svg>Tools</span>
+          <span class="tb"><svg><use href="#i-folder"/></svg>Manage</span>
+          <span class="homebar"></span>
+        </div>
+        <i class="pin" style="top:38px; right:14px">1</i>
+        <i class="pin" style="top:84px; left:118px">2</i>
+        <i class="pin" style="top:112px; left:14px">3</i>
+        <i class="pin" style="top:158px; left:14px">4</i>
+        <i class="pin" style="top:246px; left:14px">5</i>
+        <i class="pin" style="top:512px; right:14px">6</i>
+        <i class="pin" style="top:610px; left:50%">7</i>
+        <i class="pin w" style="top:454px; right:10px">8</i>
+      </div>
+      <div class="speccard">
+        <h4>Spec</h4>
+        <ol>
+          <li><span class="id">R3.2</span><span>Toolbar icon row, top-right: <b>search · sort · settings</b> (settings opens existing <code>SettingsView</code>)</span></li>
+          <li><span class="id">R3.3</span><span>Large title <b>Recent</b> + “<b>N in total</b>” count subtitle</span></li>
+          <li><span class="id">R3.4</span><span>Format chips <b>All/Scanned/DOC/XLS/PPT/PDF/OFD/TXT</b>, h-scrollable; selected = bold + underline. Reuses <code>FormatFilter.swift</code></span></li>
+          <li><span class="id">R3.5</span><span>Collapsible date groups “<b>Today | 1 item</b>” + chevron (date grouping exists)</span></li>
+          <li><span class="id">R3.6</span><span>Row: 48pt thumbnail · name · meta line (relative time · size · <i>N</i> pages) · provenance “From “Scan document”” on scan rows</span></li>
+          <li><span class="id">R3.7</span><span><b>FAB</b> blue pencil bottom-right → new/scan entry (action menu: Scan documents / New text doc)</span></li>
+          <li><span class="id">R3.1</span><span>Tab bar: Recent / Tools / Manage (iOS glass bar, accent tint)</span></li>
+          <li><span class="id warn">R3.10</span><span>Row swipe: leading <b>Favorite</b> (star) · trailing <b>Trash</b>; long-press context menu (PDF rows expose PDF Tools)</span></li>
+        </ol>
+      </div>
+    </figure>
+
+    <figure class="fc">
+      <figcaption><b>Recent · dark parity</b> <span class="st ok">tokens</span></figcaption>
+      <div class="phone dark">
+        <div class="sbar"><span>9:41</span><span class="sig"><svg class="ic sm"><use href="#i-sig"/></svg><svg class="ic sm"><use href="#i-wifi"/></svg><svg style="width:22px;height:12px"><use href="#i-batt"/></svg></span></div>
+        <div class="nav">
+          <div class="navrow"><svg class="ic"><use href="#i-search"/></svg><svg class="ic"><use href="#i-sliders"/></svg><svg class="ic"><use href="#i-gear"/></svg></div>
+          <div class="ntitle">Recent</div><div class="nsub">226 in total</div>
+        </div>
+        <div class="chips"><span class="on">All</span><span>Scanned</span><span>DOC</span><span>XLS</span><span>PPT</span><span>PDF</span><span>OFD</span><span>TXT</span></div>
+        <div class="grp">Today <span class="sep">|</span> 1 item <svg class="ic sm chv"><use href="#i-chev-u"/></svg></div>
+        <div class="row"><div class="thumb pdf">PDF</div><div class="meta"><div class="nm">System Design Playbook.pdf</div><div class="cap"><svg class="ic sm"><use href="#i-clock"/></svg>2 h ago <span class="dotsep">·</span> 1.2 MB</div></div></div>
+        <div class="grp">1 day ago <span class="sep">|</span> 3 items <svg class="ic sm chv"><use href="#i-chev-u"/></svg></div>
+        <div class="row"><div class="thumb scan">SCAN</div><div class="meta"><div class="nm">Scanned copy_260829_233128</div><div class="cap"><svg class="ic sm"><use href="#i-clock"/></svg>8 h ago <span class="dotsep">|</span> <span class="prov">From “Scan document”</span></div></div></div>
+        <div class="row"><div class="thumb scan">SCAN</div><div class="meta"><div class="nm">Scanned copy_260829_233041</div><div class="cap"><svg class="ic sm"><use href="#i-clock"/></svg>8 h ago <span class="dotsep">|</span> <span class="prov">From “Scan document”</span></div></div></div>
+        <div class="grp">25 Jun <span class="sep">|</span> 1 item <svg class="ic sm chv"><use href="#i-chev-u"/></svg></div>
+        <div class="row"><div class="thumb doc">W</div><div class="meta"><div class="nm">Thank you for using Documents.docx</div><div class="cap"><svg class="ic sm"><use href="#i-clock"/></svg>25 June</div></div></div>
+        <div class="fab"><svg><use href="#i-pencil"/></svg></div>
+        <div class="tbar">
+          <span class="tb on"><svg><use href="#i-clock"/></svg>Recent</span>
+          <span class="tb"><svg><use href="#i-tools"/></svg>Tools</span>
+          <span class="tb"><svg><use href="#i-folder"/></svg>Manage</span>
+          <span class="homebar"></span>
+        </div>
+        <i class="pin g" style="top:112px; left:14px">A</i>
+        <i class="pin g" style="top:600px; left:50%">B</i>
+      </div>
+      <div class="speccard">
+        <h4>Spec</h4>
+        <ol>
+          <li><span class="id ok">A</span><span>Dark appearance = semantic tokens only (no new palette). Demo frames are dark; this frame pins the recorded look: black bg, #1C1C1E cards, white active chip/underline</span></li>
+          <li><span class="id ok">B</span><span>Active tab = white in dark / accent in light (iOS-native <code>TabView</code> behavior)</span></li>
+        </ol>
+      </div>
+    </figure>
+
+    <figure class="fc">
+      <figcaption><b>Recent · empty state</b> <span class="st next">P3 ▶ next</span></figcaption>
+      <div class="phone light">
+        <div class="sbar"><span>9:41</span><span class="sig"><svg class="ic sm"><use href="#i-sig"/></svg><svg class="ic sm"><use href="#i-wifi"/></svg><svg style="width:22px;height:12px"><use href="#i-batt"/></svg></span></div>
+        <div class="nav">
+          <div class="navrow"><svg class="ic"><use href="#i-search"/></svg><svg class="ic"><use href="#i-sliders"/></svg><svg class="ic"><use href="#i-gear"/></svg></div>
+          <div class="ntitle">Recent</div><div class="nsub">0 in total</div>
+        </div>
+        <div class="chips"><span class="on">All</span><span>Scanned</span><span>DOC</span><span>XLS</span><span>PPT</span><span>PDF</span><span>OFD</span><span>TXT</span></div>
+        <div class="empty">
+          <div class="art" style="background:#F2F2F7; display:flex; align-items:center; justify-content:center">
+            <svg style="width:44px;height:44px;color:#C7C7CC"><use href="#i-folder"/></svg>
+          </div>
+          <div class="lbl">No documents</div>
+          <div class="lbl" style="font-size:11.5px; opacity:.7">Scan or import to get started</div>
+        </div>
+        <div class="fab"><svg><use href="#i-pencil"/></svg></div>
+        <div class="tbar">
+          <span class="tb on"><svg><use href="#i-clock"/></svg>Recent</span>
+          <span class="tb"><svg><use href="#i-tools"/></svg>Tools</span>
+          <span class="tb"><svg><use href="#i-folder"/></svg>Manage</span>
+          <span class="homebar"></span>
+        </div>
+        <i class="pin" style="top:330px; left:50%">1</i>
+      </div>
+      <div class="speccard">
+        <h4>Spec</h4>
+        <ol>
+          <li><span class="id">R3.4</span><span>Empty state per tab <b>and per filter chip</b> (demo shows “No documents” illustration for empty Scanned/XLS/etc. too). iOS: <code>ContentUnavailableView</code> with illustration-style glyph; CTA hint to scan/import</span></li>
+        </ol>
+      </div>
+    </figure>
+
+    <figure class="fc">
+      <figcaption><b>Recent · selection mode</b> <span class="st next">P3 ▶ next</span></figcaption>
+      <div class="phone light">
+        <div class="sbar"><span>9:41</span><span class="sig"><svg class="ic sm"><use href="#i-sig"/></svg><svg class="ic sm"><use href="#i-wifi"/></svg><svg style="width:22px;height:12px"><use href="#i-batt"/></svg></span></div>
+        <div class="nav">
+          <div class="navrow"><span class="lead">Cancel</span><span class="lead" style="margin-right:0; margin-left:auto">Select all</span></div>
+          <div class="ntitle">Select items</div><div class="nsub">226 in total</div>
+        </div>
+        <div class="chips"><span class="on">All</span><span>Scanned</span><span>DOC</span><span>XLS</span><span>PPT</span><span>PDF</span><span>OFD</span><span>TXT</span></div>
+        <div class="grp">Today <span class="sep">|</span> 1 item</div>
+        <div class="row"><div class="thumb pdf">PDF</div><div class="meta"><div class="nm">System Design Playbook.pdf</div><div class="cap"><svg class="ic sm"><use href="#i-clock"/></svg>2 h ago</div></div><span class="cb"></span></div>
+        <div class="grp">1 day ago <span class="sep">|</span> 3 items</div>
+        <div class="row"><div class="thumb scan">SCAN</div><div class="meta"><div class="nm">Scanned copy_260829_233128</div><div class="cap"><svg class="ic sm"><use href="#i-clock"/></svg>8 h ago <span class="dotsep">|</span> <span class="prov">From “Scan document”</span></div></div><span class="cb on"><svg class="ic sm" style="color:#fff"><use href="#i-check"/></svg></span></div>
+        <div class="row"><div class="thumb scan">SCAN</div><div class="meta"><div class="nm">Scanned copy_260829_233041</div><div class="cap"><svg class="ic sm"><use href="#i-clock"/></svg>8 h ago</div></div><span class="cb"></span></div>
+        <div class="row"><div class="thumb scan">SCAN</div><div class="meta"><div class="nm">Scanned copy_260829_232943</div><div class="cap"><svg class="ic sm"><use href="#i-clock"/></svg>8 h ago</div></div><span class="cb"></span></div>
+        <div class="grp">26 Jun <span class="sep">|</span> 1 item</div>
+        <div class="row"><div class="thumb pdf">PDF</div><div class="meta"><div class="nm">FPS_HLD.pdf</div><div class="cap"><svg class="ic sm"><use href="#i-clock"/></svg>26 June</div></div><span class="cb"></span></div>
+        <div class="abbar">
+          <span class="ab"><svg><use href="#i-share"/></svg>Share</span>
+          <span class="ab off"><svg><use href="#i-move"/></svg>Move</span>
+          <span class="ab"><svg><use href="#i-trash"/></svg>Delete</span>
+          <span class="ab"><svg><use href="#i-more"/></svg>More</span>
+          <span class="homebar"></span>
+        </div>
+        <i class="pin" style="top:44px; left:14px">1</i>
+        <i class="pin" style="top:44px; right:14px">2</i>
+        <i class="pin" style="top:246px; right:14px">3</i>
+        <i class="pin" style="top:590px; left:50%">4</i>
+        <i class="pin w" style="top:190px; right:14px">5</i>
+      </div>
+      <div class="speccard">
+        <h4>Spec</h4>
+        <ol>
+          <li><span class="id">R3.8</span><span>Enter via toolbar select action / long-press. Header: <b>Cancel</b> left, <b>Select all</b> right</span></li>
+          <li><span class="id">R3.8</span><span>Title becomes “Select items”; with N selected → “<b>N selected</b>” + “Deselect all”</span></li>
+          <li><span class="id">R3.8</span><span>Row trailing checkmarks (accent fill when selected)</span></li>
+          <li><span class="id">R3.8</span><span>Bottom bulk bar: <b>Share · Move · Delete · More</b>; disabled state when nothing selected (Move shown disabled in demo for scans pending folder model)</span></li>
+          <li><span class="id warn">R3.12</span><span><b>Move target picker does not exist yet</b> — needs folder-model decision in P4 (Move likely targets Sources folders)</span></li>
+        </ol>
+      </div>
+    </figure>
+
+    <figure class="fc">
+      <figcaption><b>Rename dialog</b> <span class="st next">P3 ▶ next</span></figcaption>
+      <div class="phone light">
+        <div class="sbar"><span>9:41</span><span class="sig"><svg class="ic sm"><use href="#i-sig"/></svg><svg class="ic sm"><use href="#i-wifi"/></svg><svg style="width:22px;height:12px"><use href="#i-batt"/></svg></span></div>
+        <div class="nav">
+          <div class="navrow"><svg class="ic"><use href="#i-search"/></svg><svg class="ic"><use href="#i-sliders"/></svg><svg class="ic"><use href="#i-gear"/></svg></div>
+          <div class="ntitle">Recent</div><div class="nsub">226 in total</div>
+        </div>
+        <div class="chips"><span class="on">All</span><span>Scanned</span><span>DOC</span><span>XLS</span><span>PPT</span><span>PDF</span><span>OFD</span><span>TXT</span></div>
+        <div class="grp">Today <span class="sep">|</span> 1 item</div>
+        <div class="row"><div class="thumb pdf">PDF</div><div class="meta"><div class="nm">System Design Playbook.pdf</div><div class="cap"><svg class="ic sm"><use href="#i-clock"/></svg>2 h ago</div></div></div>
+        <div class="scrim"></div>
+        <div class="dlg">
+          <h5>Rename</h5>
+          <div class="fld"><span class="val">Scanned copy_260830_050332</span><span class="ctr">25/50</span><span class="x">✕</span></div>
+          <div class="btns"><span>Cancel</span><span>Confirm</span></div>
+        </div>
+        <div class="tbar" style="opacity:.55">
+          <span class="tb on"><svg><use href="#i-clock"/></svg>Recent</span>
+          <span class="tb"><svg><use href="#i-tools"/></svg>Tools</span>
+          <span class="tb"><svg><use href="#i-folder"/></svg>Manage</span>
+          <span class="homebar"></span>
+        </div>
+        <i class="pin" style="top:262px; left:50%">1</i>
+        <i class="pin" style="top:300px; right:40px">2</i>
+        <i class="pin" style="top:352px; left:50%">3</i>
+      </div>
+      <div class="speccard">
+        <h4>Spec</h4>
+        <ol>
+          <li><span class="id">R3.9</span><span>Entry points: row context menu “Rename”; scan result toolbar “Rename” (same dialog, §05). Recorded cap: <b>50 characters</b> with live counter + clear button; Cancel / Confirm</span></li>
+          <li><span class="id ok">R1.3</span><span>Confirm calls existing atomic <code>DocumentStore.rename(_:to:)</code> (thumbnail cache keyed by mtime survives); extension is not editable — name-only</span></li>
+          <li><span class="id">R3.9</span><span>Component shared with scanner rename — build once in <code>Components/</code>, matches recorded dialog layout</span></li>
+        </ol>
+      </div>
+    </figure>
+
+    <figure class="fc">
+      <figcaption><b>Search &amp; sort — open</b> <span class="st warn">⚠ decision</span></figcaption>
+      <div class="speccard" style="width:302px">
+        <h4>No recorded UI in the demo</h4>
+        <ol>
+          <li><span class="id warn">R3.12</span><span><b>Search</b> — propose native <code>.searchable</code> field over name (filters within active chip). Demo only shows the toolbar icon</span></li>
+          <li><span class="id ok">R3.12</span><span><b>Sort</b> — <b>decided 2026-09-01, shipped</b>: toolbar menu on <code>arrow.up.arrow.down</code>: Sort By <b>Date / Name / Size / Type</b> + Order <b>Descending / Ascending</b>, default Date ↓ (newest first). Day groups shown only while sorting by date — other fields flatten the list</span></li>
+          <li><span class="id">R3.7</span><span><b>FAB action</b> — demo's pencil FAB has no recorded menu; propose: Scan documents / New document (matches existing <code>NewDocumentSheet</code>)</span></li>
+          <li><span class="id warn">—</span><span>Decide these three before P3 UI work starts; record decisions in README divergence ledger</span></li>
+        </ol>
+      </div>
+    </figure>
+
+  </div>
+</section>
+
+<!-- ============ 03 TOOLS ============ -->
+<section id="p3-tools">
+  <div class="sechead"><span class="phasechip ph-next">Phase 3 · next up</span><h2>Tools tab — capability-gated cards</h2>
+    <p class="secnote">Recorded configuration (demo <code>m_1</code>, plan sequence item 3/6): only <b>functional</b> cards are displayed — no dead catalog entries. Anchors: <code>analysis/REPORT.md</code> §3.2 EnumIds (<code>ID_SCAN_DOC</code>, <code>ID_FORMAT_CONVERT</code>, <code>ID_DOC_SUMMARY</code>, <code>ID_DOC_TRANSLATION</code>).</p>
+  </div>
+  <div class="frames">
+    <figure class="fc">
+      <figcaption><b>Tools · target config</b> <span class="st next">P3 ▶ next</span></figcaption>
+      <div class="phone light">
+        <div class="sbar"><span>9:41</span><span class="sig"><svg class="ic sm"><use href="#i-sig"/></svg><svg class="ic sm"><use href="#i-wifi"/></svg><svg style="width:22px;height:12px"><use href="#i-batt"/></svg></span></div>
+        <div class="nav">
+          <div class="navrow"><svg class="ic"><use href="#i-search"/></svg><svg class="ic"><use href="#i-gear"/></svg></div>
+          <div class="ntitle">Tools</div>
+        </div>
+        <div class="body-pad">
+          <div class="card">
+            <div class="hero">
+              <div class="htx"><b>Scan documents</b><div class="sub2">Documents, invoices, contracts and exam papers</div></div>
+              <div class="hart"><svg style="width:26px;height:26px;color:#B9B9C1"><use href="#i-doc"/></svg><span class="bar"></span></div>
+            </div>
+          </div>
+          <div class="seclbl">File conversion</div>
+          <div class="card">
+            <div class="crow" style="padding:13px 14px">
+              <span class="cic" style="background:#E0524D"><svg><use href="#i-doc"/></svg></span>
+              <span><b style="font-weight:600">Convert to PDF</b><div class="sub2">Supports Office files</div></span>
+              <svg class="ic sm chev"><use href="#i-chev-r"/></svg>
+            </div>
+          </div>
+          <div class="seclbl">AI tools</div>
+          <div class="grid2">
+            <div class="toolcard"><span class="tic" style="background:#2C75E6"><svg><use href="#i-doc"/></svg></span><b>Summarise documents</b><div class="sub2">Get summaries from any document</div></div>
+            <div class="toolcard"><span class="tic" style="background:#28B5B0"><svg><use href="#i-doc"/></svg></span><b>Translate documents</b><div class="sub2">Translate full documents in no time</div></div>
+          </div>
+        </div>
+        <div class="tbar">
+          <span class="tb"><svg><use href="#i-clock"/></svg>Recent</span>
+          <span class="tb on"><svg><use href="#i-tools"/></svg>Tools</span>
+          <span class="tb"><svg><use href="#i-folder"/></svg>Manage</span>
+          <span class="homebar"></span>
+        </div>
+        <i class="pin" style="top:150px; left:14px">1</i>
+        <i class="pin" style="top:236px; left:14px">2</i>
+        <i class="pin" style="top:332px; left:14px">3</i>
+        <i class="pin w" style="top:70px; right:14px">4</i>
+      </div>
+      <div class="speccard">
+        <h4>Spec</h4>
+        <ol>
+          <li><span class="id">R3.11</span><span><b>Scan documents</b> hero card → opens scanner flow (§05). Keep as card, not tile, per recording</span></li>
+          <li><span class="id">R3.11</span><span><b>Convert to PDF</b> → existing <code>ConvertFlowView</code>; office targets remain gated until P2b/P6 work</span></li>
+          <li><span class="id">R3.11</span><span><b>Summarise / Translate</b> cards shown per recording but gated on backend/licensing decision (plan item 6) — if unshippable in P6, they come out (capability-gated rule)</span></li>
+          <li><span class="id warn">R6.1</span><span>Deferred tools (<code>ID_SCAN_ID_CARD</code>, <code>ID_TEST_PAPER</code>, <code>ID_EXTRACT_CHART/FORMULA</code>, <code>ID_SMART_EXTRACTION</code>, Encrypt) appear only when functional; today's <code>ToolStubView</code> “Coming in Phase N” tiles get removed in the P3 rebase</span></li>
+        </ol>
+      </div>
+    </figure>
+  </div>
+</section>
+
+<!-- ============ 04 MANAGE ============ -->
+<section id="p4-manage">
+  <div class="sechead"><span class="phasechip ph-plan">Phase 4 · planned</span><h2>Manage tab — Created by me · Sources · Recently deleted</h2>
+    <p class="secnote">Anchors: plan sequence item 4 (memory plan-of-record), <code>analysis/REPORT.md</code> §3.6, demo <code>m_1</code> right column. Label “P4” is inferred numbering (see caveats).</p>
+  </div>
+  <div class="frames">
+    <figure class="fc">
+      <figcaption><b>Manage · target</b> <span class="st plan">P4 ○ planned</span></figcaption>
+      <div class="phone light">
+        <div class="sbar"><span>9:41</span><span class="sig"><svg class="ic sm"><use href="#i-sig"/></svg><svg class="ic sm"><use href="#i-wifi"/></svg><svg style="width:22px;height:12px"><use href="#i-batt"/></svg></span></div>
+        <div class="nav">
+          <div class="navrow"><svg class="ic"><use href="#i-search"/></svg><svg class="ic"><use href="#i-gear"/></svg></div>
+          <div class="ntitle">Manage</div>
+        </div>
+        <div class="body-pad bg-grouped" style="border-radius:0">
+          <div class="card" style="margin-top:14px">
+            <div class="crow"><b style="font-weight:600">Created by me</b><svg class="ic sm chev"><use href="#i-chev-r"/></svg></div>
+            <div class="crow"><span class="cic" style="background:#4C84E0"><svg><use href="#i-doc"/></svg></span><span>Thank_y_ts.docx<div class="sub2">Newly created docs land here</div></span></div>
+          </div>
+          <div class="seclbl">Sources</div>
+          <div class="card">
+            <div class="crow"><span class="cic" style="background:#5B8DEF"><svg><use href="#i-folder"/></svg></span><span>Files imports<div class="sub2">Documents picked from Files</div></span><svg class="ic sm chev"><use href="#i-chev-r"/></svg></div>
+            <div class="crow"><span class="cic" style="background:#3FA45B"><svg><use href="#i-folder"/></svg></span><span>Indexed folders<div class="sub2">Documents · Downloads (granted)</div></span><svg class="ic sm chev"><use href="#i-chev-r"/></svg></div>
+          </div>
+          <div class="card">
+            <div class="crow"><span class="cic" style="background:#6C6C70"><svg><use href="#i-lock"/></svg></span><span>Private Safe<div class="sub2">Optional vault · non-equivalent</div></span><svg class="ic sm chev"><use href="#i-chev-r"/></svg></div>
+          </div>
+          <div class="card">
+            <div class="crow"><span class="cic" style="background:#A9A9B0"><svg><use href="#i-trash"/></svg></span><span>Recently deleted</span><span class="cnt">3 <svg class="ic sm chev"><use href="#i-chev-r"/></svg></span></div>
+          </div>
+        </div>
+        <div class="tbar">
+          <span class="tb"><svg><use href="#i-clock"/></svg>Recent</span>
+          <span class="tb"><svg><use href="#i-tools"/></svg>Tools</span>
+          <span class="tb on"><svg><use href="#i-folder"/></svg>Manage</span>
+          <span class="homebar"></span>
+        </div>
+        <i class="pin" style="top:150px; left:14px">1</i>
+        <i class="pin" style="top:262px; left:14px">2</i>
+        <i class="pin v" style="top:388px; left:14px">3</i>
+        <i class="pin" style="top:416px; left:14px">4</i>
+      </div>
+      <div class="speccard">
+        <h4>Spec</h4>
+        <ol>
+          <li><span class="id">R4.1</span><span><b>Created by me</b> — docs created in-app (new text docs, scans, conversions); tapping opens filtered list</span></li>
+          <li><span class="id">R4.2</span><span><b>Sources</b> — iOS mapping of the Android source list (Messenger/WhatsApp/Download/Bluetooth): <b>Files imports</b> + <b>granted folders</b> (<code>FolderGrant</code> via Files picker — grant indexing already shipped). Tapping browses the tree</span></li>
+          <li><span class="id warn">R4.1</span><span><b>Private Safe</b> — recorded in Android; plan says iOS ships it only as an explicitly non-equivalent optional vault. Needs a go/no-go product decision; hidden if no-go</span></li>
+          <li><span class="id ok">R4.4</span><span><b>Recently deleted</b> with live item count → trash (next frame, built in P1)</span></li>
+        </ol>
+      </div>
+    </figure>
+
+    <figure class="fc">
+      <figcaption><b>Folder browser (Sources ▸)</b> <span class="st built">as-built · relabel</span></figcaption>
+      <div class="phone light">
+        <div class="sbar"><span>9:41</span><span class="sig"><svg class="ic sm"><use href="#i-sig"/></svg><svg class="ic sm"><use href="#i-wifi"/></svg><svg style="width:22px;height:12px"><use href="#i-batt"/></svg></span></div>
+        <div class="nav">
+          <div class="navrow"><span class="lead"><svg class="ic sm"><use href="#i-back"/></svg>Manage</span></div>
+          <div class="ntitle" style="font-size:21px">Documents</div>
+        </div>
+        <div class="body-pad">
+          <div class="card" style="margin-top:14px">
+            <div class="crow"><span class="cic" style="background:#5B8DEF"><svg><use href="#i-folder"/></svg></span><span>CamScan</span><svg class="ic sm chev"><use href="#i-chev-r"/></svg></div>
+            <div class="crow"><span class="cic" style="background:#5B8DEF"><svg><use href="#i-folder"/></svg></span><span>Invoices</span><svg class="ic sm chev"><use href="#i-chev-r"/></svg></div>
+          </div>
+          <div class="card">
+            <div class="crow"><span class="cic" style="background:#E0524D"><svg><use href="#i-doc"/></svg></span><span>FPS_HLD.pdf<div class="sub2">1.1 MB</div></span></div>
+            <div class="crow"><span class="cic" style="background:#4C84E0"><svg><use href="#i-doc"/></svg></span><span>meeting_notes.txt<div class="sub2">12 KB</div></span></div>
+          </div>
+          <div class="seclbl" style="text-align:center; color:var(--sub)">Import with <b>+</b> to add files here</div>
+        </div>
+        <div class="fab" style="bottom:86px"><svg><use href="#i-plus"/></svg></div>
+        <div class="tbar">
+          <span class="tb"><svg><use href="#i-clock"/></svg>Recent</span>
+          <span class="tb"><svg><use href="#i-tools"/></svg>Tools</span>
+          <span class="tb"><svg><use href="#i-folder"/></svg>Manage</span>
+          <span class="homebar"></span>
+        </div>
+        <i class="pin g" style="top:64px; left:14px">A</i>
+      </div>
+      <div class="speccard">
+        <h4>Spec</h4>
+        <ol>
+          <li><span class="id ok">R4.3</span><span>This is today's <code>BrowseTab</code>/<code>DirectoryContentsView</code> (folders + files, size captions, import toolbar, empty-folder state) re-parented under Manage ▸ Sources. No visual change required beyond title/back-stack — security-scoped access for granted trees must keep working</span></li>
+        </ol>
+      </div>
+    </figure>
+
+    <figure class="fc">
+      <figcaption><b>Recently deleted</b> <span class="st ok">P1 ✅ built</span></figcaption>
+      <div class="phone light">
+        <div class="sbar"><span>9:41</span><span class="sig"><svg class="ic sm"><use href="#i-sig"/></svg><svg class="ic sm"><use href="#i-wifi"/></svg><svg style="width:22px;height:12px"><use href="#i-batt"/></svg></span></div>
+        <div class="nav">
+          <div class="navrow"><span class="lead"><svg class="ic sm"><use href="#i-back"/></svg>Manage</span><span class="lead" style="margin-left:auto; color:var(--red)">Empty</span></div>
+          <div class="ntitle" style="font-size:21px">Recently deleted</div>
+        </div>
+        <div class="body-pad">
+          <div class="card" style="margin-top:14px">
+            <div class="crow"><span class="cic" style="background:#7A7A82"><svg><use href="#i-doc"/></svg></span><span>Scanned copy_260829_233128<div class="sub2" style="color:#E0803C">Deletes in 29 days</div></span></div>
+            <div class="crow"><span class="cic" style="background:#7A7A82"><svg><use href="#i-doc"/></svg></span><span>Scanned copy_260829_233041<div class="sub2" style="color:#E0803C">Deletes in 29 days</div></span></div>
+            <div class="crow"><span class="cic" style="background:#E0524D"><svg><use href="#i-doc"/></svg></span><span>FPS_HLD (old).pdf<div class="sub2" style="color:#E0803C">Deletes today</div></span></div>
+          </div>
+          <div class="seclbl" style="text-align:center">Items are kept for 30 days, then deleted automatically</div>
+        </div>
+        <div class="tbar">
+          <span class="tb"><svg><use href="#i-clock"/></svg>Recent</span>
+          <span class="tb"><svg><use href="#i-tools"/></svg>Tools</span>
+          <span class="tb"><svg><use href="#i-folder"/></svg>Manage</span>
+          <span class="homebar"></span>
+        </div>
+        <i class="pin g" style="top:170px; left:14px">A</i>
+        <i class="pin g" style="top:170px; right:14px">B</i>
+      </div>
+      <div class="speccard">
+        <h4>Spec</h4>
+        <ol>
+          <li><span class="id ok">R4.4</span><span>Built in P1 (<code>Settings/TrashView.swift</code> + <code>TrashPolicy</code>): per-row countdown “Deletes in N days / today”, launch purge, 30-day retention</span></li>
+          <li><span class="id ok">R4.4</span><span>Swipes: leading <b>Restore</b> (blue) · trailing <b>Delete forever</b> (red); “Empty” toolbar button with confirmation dialog</span></li>
+          <li><span class="id">R4.1</span><span>P4 change: entry point moves Settings ▸ Manage tab (Settings keeps a Storage row)</span></li>
+        </ol>
+      </div>
+    </figure>
+  </div>
+</section>
+
+<!-- ============ 05 SCAN ============ -->
+<section id="p5-scan">
+  <div class="sechead"><span class="phasechip ph-plan">Phase 5 · planned</span><h2>Scan flow — capture → pages → save → result</h2>
+    <p class="secnote">Anchors: <code>analysis/IMPL_BRIEF_INCREMENT2.md</code> §1, demo frames <code>sm_1–sm_5</code>. iOS substitutes VisionKit (native camera chrome) for the Android external scanner package. A full-screen flow exists today (<code>ScannerFlowView.swift</code>); P5 makes bundles persistent and re-sequences save behind a chooser. “P5” is inferred numbering.</p>
+  </div>
+  <div class="frames">
+    <figure class="fc">
+      <figcaption><b>Scan · capture</b> <span class="st built">flow exists · restyle</span></figcaption>
+      <div class="phone dark">
+        <div class="cam">
+          <div class="paper"></div>
+          <div class="corner"><svg class="ic"><use href="#i-back"/></svg><svg class="ic"><use href="#i-x"/></svg></div>
+          <div class="pill">Digitise paper documents</div>
+          <div class="bottom">
+            <span class="gicon"><svg><use href="#i-import"/></svg></span>
+            <span class="shutter"><i></i></span>
+            <span style="width:42px"></span>
+          </div>
+        </div>
+        <i class="pin" style="top:70px; left:50%">1</i>
+        <i class="pin" style="top:584px; left:50%">2</i>
+        <i class="pin" style="top:584px; left:64px">3</i>
+        <i class="pin w" style="top:52px; right:16px">4</i>
+      </div>
+      <div class="speccard">
+        <h4>Spec</h4>
+        <ol>
+          <li><span class="id">R5.1</span><span>Full-bleed camera (VisionKit), hint pill top-center — copy TBD: Android says “Digitise paper documents”, keep or re-word</span></li>
+          <li><span class="id">R5.1</span><span>Shutter center · gallery-import left (existing <code>PhotosPicker</code>-style import)</span></li>
+          <li><span class="id">R5.1</span><span>Back = discard flow w/ confirm when pages exist</span></li>
+          <li><span class="id warn">R5.1</span><span>⚠ The ✕/back pair duplicates exit paths — pick one (close top-right) during P5 restyle; keep device-only camera verification on hardware</span></li>
+        </ol>
+      </div>
+    </figure>
+
+    <figure class="fc">
+      <figcaption><b>Scan · multi-page + Done</b> <span class="st built">flow exists · restyle</span></figcaption>
+      <div class="phone dark">
+        <div class="cam">
+          <div class="paper" style="transform:rotate(1.5deg)"></div>
+          <div class="corner"><svg class="ic"><use href="#i-back"/></svg><svg class="ic"><use href="#i-x"/></svg></div>
+          <div class="pill">Digitise paper documents</div>
+          <div class="strip">
+            <span class="sthumb"></span><span class="sthumb"></span><span class="sthumb"><span class="n">3</span></span>
+          </div>
+          <div class="bottom">
+            <span class="gicon"><svg><use href="#i-import"/></svg></span>
+            <span class="shutter"><i></i></span>
+            <span class="donepill">Done</span>
+          </div>
+        </div>
+        <i class="pin" style="top:470px; left:80px">1</i>
+        <i class="pin" style="top:560px; right:60px">2</i>
+      </div>
+      <div class="speccard">
+        <h4>Spec</h4>
+        <ol>
+          <li><span class="id">R5.2</span><span>Thumb strip above shutter (52×68), last thumb badge = page count; tap thumb to retake/delete that page</span></li>
+          <li><span class="id">R5.2</span><span><b>Done</b> pill (accent) appears once ≥1 page → advances to save step</span></li>
+        </ol>
+      </div>
+    </figure>
+
+    <figure class="fc">
+      <figcaption><b>Scan · save chooser</b> <span class="st warn">⚠ divergence</span></figcaption>
+      <div class="phone dark">
+        <div class="cam">
+          <div class="paper" style="transform:rotate(1.5deg); opacity:.7"></div>
+          <div class="corner"><svg class="ic"><use href="#i-back"/></svg><svg class="ic"><use href="#i-x"/></svg></div>
+        </div>
+        <div class="scrim"></div>
+        <div class="sheet">
+          <div style="padding:12px 14px 4px; font-size:11px; color:#8E8E93; text-align:center">Save scan as</div>
+          <div class="it"><svg class="ic sm" style="margin-right:6px"><use href="#i-doc"/></svg>Save as PDF</div>
+          <div class="it"><svg class="ic sm" style="margin-right:6px"><use href="#i-image"/></svg>Save as Image</div>
+          <div class="it"><svg class="ic sm" style="margin-right:6px"><use href="#i-doc"/></svg>Save as Text <span style="color:#8E8E93; font-size:11px; margin-left:6px">test papers · OCR</span></div>
+          <div class="cn">Cancel</div>
+        </div>
+        <i class="pin v" style="top:432px; left:22px">1</i>
+        <i class="pin v" style="top:498px; left:22px">2</i>
+      </div>
+      <div class="speccard">
+        <h4>Spec</h4>
+        <ol>
+          <li><span class="id warn">R5.3</span><span><b>Deliberate divergence from Android</b>: the demo auto-saves (“Saved to Documents” immediately); the approved product decision is to ask first — <b>Save as Image / Save as PDF</b>, and <b>Save as Text</b> for test papers (OCR)</span></li>
+          <li><span class="id warn">R5.3</span><span>Cancel returns to the preview (retake / scan more / continue) — no silent save</span></li>
+          <li><span class="id">R5.3</span><span>Save target = app library; scan then merges into Recent with provenance “From “Scan document””</span></li>
+        </ol>
+      </div>
+    </figure>
+
+    <figure class="fc">
+      <figcaption><b>Scan · result / saved</b> <span class="st built">flow exists · restyle</span></figcaption>
+      <div class="phone light">
+        <div class="sbar"><span>9:41</span><span class="sig"><svg class="ic sm"><use href="#i-sig"/></svg><svg class="ic sm"><use href="#i-wifi"/></svg><svg style="width:22px;height:12px"><use href="#i-batt"/></svg></span></div>
+        <div class="nav">
+          <div class="navrow"><span class="lead"><svg class="ic sm"><use href="#i-back"/></svg></span><span style="flex:1; text-align:center; font-size:15px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">Scanned copy_260830_050332</span><svg class="ic" style="margin-left:8px"><use href="#i-grid"/></svg><svg class="ic"><use href="#i-list"/></svg></div>
+        </div>
+        <div class="banner"><svg class="ic sm" style="color:var(--green)"><use href="#i-check"/></svg>Saved to Documents<span class="x">✕</span></div>
+        <div class="pgwrap">
+          <div class="pg">
+            <span class="nm">1 / 1</span>
+            <div class="proc"><span class="spin"></span>Processing…</div>
+          </div>
+        </div>
+        <div class="toolrow">
+          <span class="ti"><svg><use href="#i-plus"/></svg>Add</span>
+          <span class="ti"><svg><use href="#i-edit"/></svg>Edit</span>
+          <span class="ti"><svg><use href="#i-pencil"/></svg>Rename</span>
+          <span class="ti"><svg><use href="#i-share"/></svg>Share</span>
+          <span class="homebar" style="color:#000"></span>
+        </div>
+        <i class="pin" style="top:118px; left:50%">1</i>
+        <i class="pin" style="top:284px; left:60px">2</i>
+        <i class="pin" style="top:590px; left:50%">3</i>
+        <i class="pin w" style="top:64px; right:14px">4</i>
+      </div>
+      <div class="speccard">
+        <h4>Spec</h4>
+        <ol>
+          <li><span class="id">R5.4</span><span>Dismissible “Saved to Documents” success banner; title = document name</span></li>
+          <li><span class="id">R5.4</span><span>Page grid (100×136 thumbs) with N/M badge; per-page “Processing…” placeholder while effects/rendering run (~seconds)</span></li>
+          <li><span class="id">R5.4</span><span>Bottom toolbar <b>Add · Edit · Rename · Share</b>. Edit = nondestructive page ops (reorder/rotate/recrop/filter/delete) per plan item 5; Rename opens the shared dialog (R3.9, 50-char)</span></li>
+          <li><span class="id">R5.5</span><span>Bundle (pages + state) persists across relaunch until user finishes/discards — new in P5; today's flow is memory-only</span></li>
+        </ol>
+      </div>
+    </figure>
+  </div>
+</section>
+
+<!-- ============ 06 AS-BUILT ============ -->
+<section id="asbuilt">
+  <div class="sechead"><span class="phasechip ph-ok">as-built · reference</span><h2>Cross-cutting screens that already exist</h2>
+    <p class="secnote">Pinned so later phases re-use (not redesign) them. These frames reflect the current build on master (Phase 0–1 + granted-folder indexing + Increment-1/2 features).</p>
+  </div>
+  <div class="frames">
+    <figure class="fc">
+      <figcaption><b>Document viewer (Quick Look)</b> <span class="st ok">built</span></figcaption>
+      <div class="phone light">
+        <div class="sbar"><span>9:41</span><span class="sig"><svg class="ic sm"><use href="#i-sig"/></svg><svg class="ic sm"><use href="#i-wifi"/></svg><svg style="width:22px;height:12px"><use href="#i-batt"/></svg></span></div>
+        <div class="nav">
+          <div class="navrow"><span class="lead">Done</span><span style="flex:1; text-align:center; font-size:14px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">System Design Playbook.pdf</span><svg class="ic tint" style="margin-left:8px"><use href="#i-share"/></svg></div>
+        </div>
+        <div class="vpage">page 1 / 12</div>
+        <div class="homebar" style="color:#000; bottom:10px"></div>
+        <i class="pin g" style="top:46px; left:14px">A</i>
+      </div>
+      <div class="speccard">
+        <h4>Spec</h4>
+        <ol>
+          <li><span class="id ok">—</span><span><code>DocumentViewerScreen</code> full-screen cover wrapping <code>QLPreviewController</code>; PDF / Office / text / MD / HTML / images; Done + Share. P6 upgrades PDF reliability (page-box-safe watermark, forms) behind this same surface</span></li>
+        </ol>
+      </div>
+    </figure>
+
+    <figure class="fc">
+      <figcaption><b>Settings</b> <span class="st ok">built</span></figcaption>
+      <div class="phone light">
+        <div class="sbar"><span>9:41</span><span class="sig"><svg class="ic sm"><use href="#i-sig"/></svg><svg class="ic sm"><use href="#i-wifi"/></svg><svg style="width:22px;height:12px"><use href="#i-batt"/></svg></span></div>
+        <div class="nav">
+          <div class="navrow"><span class="lead"><svg class="ic sm"><use href="#i-back"/></svg>Recent</span></div>
+          <div class="ntitle" style="font-size:21px">Settings</div>
+        </div>
+        <div class="frm">
+          <div class="fs">
+            <div class="lbl">Indexed folders</div>
+            <div class="card">
+              <div class="crow"><span class="cic" style="background:#3FA45B"><svg><use href="#i-folder"/></svg></span><span>Documents<div class="sub2">~/Documents</div></span></div>
+              <div class="crow"><span class="cic" style="background:#5B8DEF"><svg><use href="#i-folder"/></svg></span><span>Downloads<div class="sub2">~/Downloads</div></span></div>
+              <div class="crow" style="color:var(--accent)"><svg class="ic sm tint"><use href="#i-plus"/></svg>Add Folder…</div>
+            </div>
+          </div>
+          <div class="fs">
+            <div class="lbl">Storage</div>
+            <div class="card">
+              <div class="crow"><span>Recently deleted</span><span class="cnt">3 <svg class="ic sm chev"><use href="#i-chev-r"/></svg></span></div>
+              <div class="crow" style="color:var(--red)"><span>Empty Trash</span></div>
+            </div>
+          </div>
+          <div class="fs">
+            <div class="lbl">About</div>
+            <div class="card">
+              <div class="crow"><span>Version</span><span class="cnt">1.0 (1)</span></div>
+            </div>
+          </div>
+        </div>
+        <i class="pin g" style="top:150px; left:14px">A</i>
+      </div>
+      <div class="speccard">
+        <h4>Spec</h4>
+        <ol>
+          <li><span class="id ok">GI</span><span>Shipped with granted-folder indexing: grant rows, Add Folder (Files picker), swipe-to-delete. P4 keeps Settings as-is; Manage ▸ Sources becomes the primary browsing surface</span></li>
+        </ol>
+      </div>
+    </figure>
+
+    <figure class="fc">
+      <figcaption><b>PDF Tools</b> <span class="st ok">built</span></figcaption>
+      <div class="phone light">
+        <div class="sbar"><span>9:41</span><span class="sig"><svg class="ic sm"><use href="#i-sig"/></svg><svg class="ic sm"><use href="#i-wifi"/></svg><svg style="width:22px;height:12px"><use href="#i-batt"/></svg></span></div>
+        <div class="nav">
+          <div class="navrow"><span class="lead"><svg class="ic sm"><use href="#i-back"/></svg>Recent</span></div>
+          <div class="ntitle" style="font-size:21px">PDF Tools</div>
+        </div>
+        <div class="frm">
+          <div class="fs">
+            <div class="lbl">Source</div>
+            <div class="card">
+              <div class="crow"><span class="cic" style="background:#E0524D"><svg><use href="#i-doc"/></svg></span><span>FPS_HLD.pdf<div class="sub2">3 pages</div></span></div>
+            </div>
+          </div>
+          <div class="fs">
+            <div class="card">
+              <div class="crow"><span class="cic" style="background:#2C75E6"><svg><use href="#i-doc"/></svg></span><span>Merge<div class="sub2">Combine multiple PDFs</div></span></div>
+              <div class="crow"><span class="cic" style="background:#2C75E6"><svg><use href="#i-doc"/></svg></span><span>Split<div class="sub2">Extract page ranges</div></span></div>
+              <div class="crow"><span class="cic" style="background:#2C75E6"><svg><use href="#i-doc"/></svg></span><span>Watermark<div class="sub2">Stamp every page</div></span></div>
+              <div class="crow"><span class="cic" style="background:#2C75E6"><svg><use href="#i-doc"/></svg></span><span>Sign<div class="sub2">Draw a signature</div></span></div>
+              <div class="crow"><span class="cic" style="background:#2C75E6"><svg><use href="#i-doc"/></svg></span><span>Extract Images</span></div>
+              <div class="crow" style="opacity:.45"><span class="cic" style="background:#6C6C70"><svg><use href="#i-lock"/></svg></span><span>Encrypt<div class="sub2">Coming later (P2b)</div></span></div>
+            </div>
+          </div>
+        </div>
+        <i class="pin g" style="top:150px; left:14px">A</i>
+        <i class="pin w" style="top:490px; left:14px">B</i>
+      </div>
+      <div class="speccard">
+        <h4>Spec</h4>
+        <ol>
+          <li><span class="id ok">—</span><span>Reached from PDF-row context menu; six working flows + disabled Encrypt. P6 hardens reliability (A4/landscape/rotated page-box preservation already fixed in P0)</span></li>
+        </ol>
+      </div>
+    </figure>
+  </div>
+</section>
+
+<!-- ============ 07 FLOWS ============ -->
+<section id="flows">
+  <div class="sechead"><span class="phasechip ph-ok">flows</span><h2>Navigation &amp; data flows</h2>
+    <p class="secnote">Purple nodes = deliberate divergences from the Android recording (documented in README ledger).</p>
+  </div>
+  <div class="frames" style="flex-direction:column; gap:18px">
+    <div class="panel wide" style="width:100%">
+      <h3 class="mb8">Scan → Recent</h3>
+      <div class="flow">
+        <span class="fnode">Tools<small>Scan documents</small></span><span class="farr">→</span>
+        <span class="fnode">Capture<small>shutter / gallery</small></span><span class="farr">→</span>
+        <span class="fnode">Pages<small>strip + Done</small></span><span class="farr">→</span>
+        <span class="fnode dv">Save chooser<small>PDF / Image / Text ⚠</small></span><span class="farr">→</span>
+        <span class="fnode">Result<small>banner · Add/Edit/Rename/Share</small></span><span class="farr">→</span>
+        <span class="fnode hl">Recent<small>row: “From “Scan document””</small></span>
+      </div>
+    </div>
+    <div class="panel wide" style="width:100%">
+      <h3 class="mb8">Recent actions</h3>
+      <div class="flow">
+        <span class="fnode hl">Recent row</span><span class="farr">→</span>
+        <span class="fnode">Quick Look<small>any doc type</small></span>
+        <span class="farr">·</span>
+        <span class="fnode hl">PDF row</span><span class="farr">→</span>
+        <span class="fnode">PDF Tools<small>context menu</small></span>
+        <span class="farr">·</span>
+        <span class="fnode hl">Row menu</span><span class="farr">→</span>
+        <span class="fnode">Rename<small>50-char dialog</small></span>
+        <span class="farr">·</span>
+        <span class="fnode">Swipe left</span><span class="farr">→</span>
+        <span class="fnode">Recently deleted<small>30-day purge</small></span>
+      </div>
+    </div>
+    <div class="panel wide" style="width:100%">
+      <h3 class="mb8">Manage</h3>
+      <div class="flow">
+        <span class="fnode hl">Manage</span><span class="farr">→</span>
+        <span class="fnode">Created by me</span>
+        <span class="farr">·</span>
+        <span class="fnode">Sources ▸<small>imports · granted folders</small></span><span class="farr">→</span>
+        <span class="fnode">Folder browser<small>as-built BrowseTab</small></span>
+        <span class="farr">·</span>
+        <span class="fnode dv">Private Safe<small>⚠ go/no-go decision</small></span>
+        <span class="farr">·</span>
+        <span class="fnode">Recently deleted</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  Generated 2026-08-30 · board: <code>design/screens.html</code> · mapping &amp; ledger: <code>design/README.md</code> ·
+  visual reference frames (local, gitignored): <code>logs/frames-main/</code>, <code>logs/frames-scan/</code> ·
+  IDs minted here; plan-of-record = revised phased plan in project memory (not yet committed to repo).
+  <script>const y=new URLSearchParams(location.search).get('y'); if(y) addEventListener('load',()=>scrollTo(0,+y));</script>
+</footer>
+
+</div>
+</body>
+</html>
