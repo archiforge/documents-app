@@ -1,8 +1,12 @@
 import SwiftUI
 
-/// Shared list row: kind glyph, name, creation date, and size.
+/// Shared list row: kind glyph, name, creation date, and size. In
+/// selection mode (board R3.8) the favorite star is replaced by a trailing
+/// checkmark and the tap toggles selection instead of opening.
 struct DocumentRow: View {
     let record: DocumentRecord
+    var isSelecting = false
+    var isSelected = false
     let onOpen: () -> Void
 
     var body: some View {
@@ -33,7 +37,11 @@ struct DocumentRow: View {
 
                 Spacer()
 
-                if record.isFavorite {
+                if isSelecting {
+                    Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                        .font(.title3)
+                        .foregroundStyle(isSelected ? Color.accentColor : Color.secondary)
+                } else if record.isFavorite {
                     Image(systemName: "star.fill")
                         .font(.caption)
                         .foregroundStyle(.yellow)
@@ -43,5 +51,6 @@ struct DocumentRow: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(record.displayName)
+        .accessibilityValue(isSelecting ? (isSelected ? "Selected" : "Not selected") : "")
     }
 }

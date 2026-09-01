@@ -47,7 +47,7 @@ or demo frame (`m_*` main, `sm_*` scan).
 | **R3.5** | Collapsible date groups "Today \| 1 item" | `m_1` | `Core/DocumentStore/DateGrouping.swift` |
 | **R3.6** | Row: 48pt thumb, name, meta (rel time · size · N pages), provenance "From “Scan document”", star | `m_1` | `Home/DocumentRow.swift`, `Core/Thumbnails/ThumbnailView.swift` |
 | R3.7 | FAB (pencil) → scan / new document (action TBD, see ⚠ below) | `m_1` | none |
-| R3.8 | Selection mode: Cancel/Select all, checkboxes, "N selected", bulk bar Share·Move·Delete·More | `sm_5` | none |
+| **R3.8** | Selection mode: Cancel/Select all⇄Deselect all, trailing checkmarks, inline "N Selected", bulk bar Share·More(Favorite/Unfavorite·Compress)·Delete (Move dropped, ledger #9); Delete = soft trash | `sm_5`; ledger #9 | `Home/BulkSelection.swift`, `Home/BulkSelectionActions.swift`, Recent + Favorites toolbars |
 | R3.9 | Rename dialog, 50-char counter, Cancel/Confirm → `DocumentStore.rename` | `sm_4`; brief P1 §3 | backend only (`DocumentStore.swift:177`); scanner alert at `ScannerFlowView.swift:118` |
 | R3.10 | Swipe: leading Favorite, trailing Trash; context menu (PDF rows → PDF Tools) | Increment 1 §1 | exists in Recent/Favorites lists |
 | R3.11 | Tools tab = Scan hero + Convert to PDF + Summarise/Translate cards, only functional entries | `m_1`; REPORT §3.2 | `Tools/ToolsTab.swift` (17 items incl. stubs → prune) |
@@ -95,6 +95,7 @@ or demo frame (`m_*` main, `sm_*` scan).
 | 6 | Underline-selected chips, iOS glass tab bar, system fonts (all frames) | iOS-native styling over Android pixel copy; clean-room rule |
 | 7 | Sort menu (R3.12): Sort By Date / Name / Size / Type + Descending/Ascending, default Date ↓ where **Date = the file's actual creation date** (`createdAt` from file metadata, backfilled at launch, falls back to `importedAt`); day groups only while sorting by date | no recorded demo UI; product decision 2026-09-01, refined same day from last-opened → import time → real file creation date; row hints show the same date |
 | 8 | Recent chip row (R3.4) is All/Scanned/PDF/DOC/EPUB/XLS/TXT; APK's PPT and OFD chips removed, EPUB chip added | user decision 2026-09-01; PPT/OFD documents remain listed under All, just unfilterable; EPUB kind shipped in `40514eb` had no chip |
+| 9 | Bulk bar (R3.8) is Share · More (Favorite/Unfavorite · Compress) · Delete; Move dropped until the P4 folder model exists; Delete = soft trash (30-day Recently deleted); entry is a toolbar Select button in Recent and Favorites only — long-press keeps the R3.10 context menu | user decision 2026-09-01; `ArchiveService` already takes multiple files and `ShareLink` takes arrays, while Move has no target surface yet; matches existing swipe/menu delete semantics |
 
 ## Working agreements
 

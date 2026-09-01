@@ -328,6 +328,23 @@ final class DocumentStore {
         }
     }
 
+    /// Bulk selection (board R3.8): sets the favorite flag on every record
+    /// in one save, reverting all of them if the save fails.
+    func setFavorite(_ records: [DocumentRecord], to isFavorite: Bool) throws {
+        let snapshots = records.map { (record: $0, wasFavorite: $0.isFavorite) }
+        for snapshot in snapshots {
+            snapshot.record.isFavorite = isFavorite
+        }
+        do {
+            try save()
+        } catch {
+            for snapshot in snapshots {
+                snapshot.record.isFavorite = snapshot.wasFavorite
+            }
+            throw error
+        }
+    }
+
     /// Moves to trash. The on-disk file is kept.
     func trash(_ record: DocumentRecord) throws {
         guard !record.isTrashed else { return }
@@ -397,6 +414,27 @@ final class DocumentStore {
     func emptyTrash() throws {
         for record in try fetchTrash() {
             try delete(record)
+        }
+    }
+
+    /// Bulk selection (board R3.8): moves every record to trash in one
+    /// save. Flag-only like `trash(_:)` — no file is touched, and already
+    /// trashed records keep their original `trashedAt`. A failure reverts
+    /// every touched record.
+    func trashAll(_ records: [DocumentRecord]) throws {
+        let snapshots = records.map { (record: $0, isTrashed: $0.isTrashed, trashedAt: $0.trashedAt) }
+        for snapshot in snapshots where !snapshot.isTrashed {
+            snapshot.record.isTrashed = true
+            snapshot.record.trashedAt = now()
+        }
+        do {
+            try save()
+        } catch {
+            for snapshot in snapshots {
+                snapshot.record.isTrashed = snapshot.isTrashed
+                snapshot.record.trashedAt = snapshot.trashedAt
+            }
+            throw error
         }
     }
 

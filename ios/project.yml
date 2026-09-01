@@ -51,6 +51,20 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.docdeck.app.tests
         GENERATE_INFOPLIST_FILE: YES
 
+  DocumentsUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    deploymentTarget: "26.0"
+    sources:
+      - path: DocumentsUITests
+    dependencies:
+      - target: Documents
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.docdeck.app.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: Documents
+
 schemes:
   Documents:
     build:
@@ -62,6 +76,7 @@ schemes:
       config: Debug
       targets:
         - DocumentsTests
+        - DocumentsUITests
     profile:
       config: Release
     analyze:

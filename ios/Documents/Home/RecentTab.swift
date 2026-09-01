@@ -25,6 +25,7 @@ struct RecentTab: View {
     @State private var sort = DocumentSort.defaultSort
     @State private var searchText = ""
     @State private var collapsedGroups: Set<String> = []
+    @State private var selection = BulkSelection()
 
     @State private var isImporting = false
     @State private var presentedDocument: PresentedDocument?
@@ -64,12 +65,22 @@ struct RecentTab: View {
                         }
                     }
                     .searchable(text: $searchText, prompt: searchPrompt)
+                    .bulkSelectionActions(selection: $selection, selectedRecords: chosen)
                 }
             }
-            .navigationTitle("Recent")
+            .navigationTitle(selectionTitle)
+            .navigationBarTitleDisplayMode(selection.isActive ? .inline : .automatic)
+            // iOS 26 merges a bottom bar into the floating tab bar's glass
+            // and the two fight for touches; selection mode claims the zone,
+            // like Files/Photos do.
+            .toolbar(selection.isActive ? .hidden : .visible, for: .tabBar)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    if library.isIndexing {
+                    if selection.isActive {
+                        Button("Cancel") {
+                            selection.exit()
+                        }
+                    } else if library.isIndexing {
                         ProgressView()
                             .accessibilityLabel("Indexing device documents")
                     } else {
@@ -82,11 +93,25 @@ struct RecentTab: View {
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    sortMenu
+                    if selection.isActive {
+                        selectAllButton
+                    } else {
+                        sortMenu
+                    }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Import", systemImage: "square.and.arrow.down") {
-                        isImporting = true
+                    if !selection.isActive {
+                        Button("Select", systemImage: "checkmark.circle") {
+                            selection.enter()
+                        }
+                        .disabled(documents.isEmpty)
+                    }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    if !selection.isActive {
+                        Button("Import", systemImage: "square.and.arrow.down") {
+                            isImporting = true
+                        }
                     }
                 }
             }
@@ -209,40 +234,51 @@ struct RecentTab: View {
         .accessibilityLabel("\(group.title), \(count) files\(isCollapsed ? ", collapsed" : "")")
     }
 
+    @ViewBuilder
     private func row(for document: DocumentRecord) -> some View {
-        DocumentRow(record: document) {
-            open(document)
-        }
-        .documentActions(
-            record: document,
-            onOpen: { open(document) },
-            onPDFTools: document.kind == .pdf ? { pdfToolsSource = document } : nil
-        )
-        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-            Button(role: .destructive) {
-                do {
-                    try store.trash(document)
-                } catch {
-                    failureText = error.localizedDescription
-                }
-            } label: {
-                Label("Trash", systemImage: "trash")
+        if selection.isActive {
+            DocumentRow(
+                record: document,
+                isSelecting: true,
+                isSelected: selection.contains(document.id)
+            ) {
+                selection.toggle(document.id)
             }
-        }
-        .swipeActions(edge: .leading) {
-            Button {
-                do {
-                    try store.toggleFavorite(document)
-                } catch {
-                    failureText = error.localizedDescription
-                }
-            } label: {
-                Label(
-                    document.isFavorite ? "Unfavorite" : "Favorite",
-                    systemImage: document.isFavorite ? "star.slash" : "star"
-                )
+        } else {
+            DocumentRow(record: document) {
+                open(document)
             }
-            .tint(.yellow)
+            .documentActions(
+                record: document,
+                onOpen: { open(document) },
+                onPDFTools: document.kind == .pdf ? { pdfToolsSource = document } : nil
+            )
+            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                Button(role: .destructive) {
+                    do {
+                        try store.trash(document)
+                    } catch {
+                        failureText = error.localizedDescription
+                    }
+                } label: {
+                    Label("Trash", systemImage: "trash")
+                }
+            }
+            .swipeActions(edge: .leading) {
+                Button {
+                    do {
+                        try store.toggleFavorite(document)
+                    } catch {
+                        failureText = error.localizedDescription
+                    }
+                } label: {
+                    Label(
+                        document.isFavorite ? "Unfavorite" : "Favorite",
+                        systemImage: document.isFavorite ? "star.slash" : "star"
+                    )
+                }
+                .tint(.yellow)
+            }
         }
     }
 
@@ -281,6 +317,34 @@ struct RecentTab: View {
     }
 
     // MARK: - Helpers
+
+    /// Large "Recent" normally; selection mode shows an inline count
+    /// instead (board R3.8). Rows selected under a narrower chip/search
+    /// stay selected, so the count resolves against the whole library —
+    /// it always matches what the bulk bar would act on.
+    private var selectionTitle: String {
+        guard selection.isActive else { return "Recent" }
+        return selection.count == 0 ? "Select Items" : "\(selection.count) Selected"
+    }
+
+    /// Select-all is scoped to what the chip + search currently show.
+    private var selectAllButton: some View {
+        let ids = filtered.map(\.id)
+        let allSelected = selection.allSelected(in: ids)
+        return Button(allSelected ? "Deselect All" : "Select All") {
+            if allSelected {
+                selection.deselectAll()
+            } else {
+                selection.selectAll(ids)
+            }
+        }
+    }
+
+    /// Records the bulk bar acts on: every selected row still in the
+    /// library, including ones hidden by the current chip/search.
+    private var chosen: [DocumentRecord] {
+        documents.filter { selection.contains($0.id) }
+    }
 
     /// Reflects the active chip so the scoping is visible in the field
     /// itself ("Search in PDF").

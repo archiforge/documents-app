@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Documents — Screen Design Board v2</title>
+<title>Documents — Screen Design Board v3</title>
 <style>
   :root{
     --accent:#2C75E6; --red:#FF3B30; --green:#34C759; --star:#F5B301;
@@ -530,7 +530,7 @@
     </figure>
 
     <figure class="fc">
-      <figcaption><b>Recent · selection mode</b> <span class="st next">P3 ▶ next</span></figcaption>
+      <figcaption><b>Recent · selection mode</b> <span class="st ok">built</span></figcaption>
       <div class="phone light">
         <div class="sbar"><span>9:41</span><span class="sig"><svg class="ic sm"><use href="#i-sig"/></svg><svg class="ic sm"><use href="#i-wifi"/></svg><svg style="width:22px;height:12px"><use href="#i-batt"/></svg></span></div>
         <div class="nav">
@@ -548,9 +548,8 @@
         <div class="row"><div class="thumb pdf">PDF</div><div class="meta"><div class="nm">FPS_HLD.pdf</div><div class="cap"><svg class="ic sm"><use href="#i-clock"/></svg>26 June</div></div><span class="cb"></span></div>
         <div class="abbar">
           <span class="ab"><svg><use href="#i-share"/></svg>Share</span>
-          <span class="ab off"><svg><use href="#i-move"/></svg>Move</span>
-          <span class="ab"><svg><use href="#i-trash"/></svg>Delete</span>
           <span class="ab"><svg><use href="#i-more"/></svg>More</span>
+          <span class="ab"><svg><use href="#i-trash"/></svg>Delete</span>
           <span class="homebar"></span>
         </div>
         <i class="pin" style="top:44px; left:14px">1</i>
@@ -562,11 +561,11 @@
       <div class="speccard">
         <h4>Spec</h4>
         <ol>
-          <li><span class="id">R3.8</span><span>Enter via toolbar select action / long-press. Header: <b>Cancel</b> left, <b>Select all</b> right</span></li>
-          <li><span class="id">R3.8</span><span>Title becomes “Select items”; with N selected → “<b>N selected</b>” + “Deselect all”</span></li>
-          <li><span class="id">R3.8</span><span>Row trailing checkmarks (accent fill when selected)</span></li>
-          <li><span class="id">R3.8</span><span>Bottom bulk bar: <b>Share · Move · Delete · More</b>; disabled state when nothing selected (Move shown disabled in demo for scans pending folder model)</span></li>
-          <li><span class="id warn">R3.12</span><span><b>Move target picker does not exist yet</b> — needs folder-model decision in P4 (Move likely targets Sources folders)</span></li>
+          <li><span class="id">R3.8</span><span>Enter via toolbar <b>Select</b> action (built: Recent + Favorites; long-press stays the R3.10 context menu). Header: <b>Cancel</b> left, <b>Select all ⇄ Deselect all</b> right</span></li>
+          <li><span class="id">R3.8</span><span>Title becomes inline “Select Items”; with N selected → “<b>N Selected</b>”. Select all is scoped to the visible chip + search results</span></li>
+          <li><span class="id">R3.8</span><span>Row trailing checkmarks (accent fill when selected); swipe actions and context menu off while selecting</span></li>
+          <li><span class="id">R3.8</span><span>Bottom bulk bar: <b>Share · More (Favorite/Unfavorite · Compress) · Delete</b>; disabled state when nothing selected. <b>Delete = soft trash</b> (30-day Recently deleted). <b>Move dropped — ledger #9</b></span></li>
+          <li><span class="id warn">R3.8</span><span><b>Move deferred with the P4 folder model</b> — a target picker needs the Sources folder decision first (ledger #9)</span></li>
         </ol>
       </div>
     </figure>
