@@ -10,6 +10,8 @@ struct RecentTab: View {
     /// App-scoped library owned by `DocumentsApp`; indexing survives tab
     /// switches because this view no longer starts or stops it.
     @Environment(DeviceLibraryService.self) private var library
+    /// App-icon quick actions: "Import Files" lands here.
+    @Environment(QuickActionRouter.self) private var quickActions
 
     @Query(
         filter: #Predicate<DocumentRecord> { !$0.isTrashed },
@@ -90,7 +92,19 @@ struct RecentTab: View {
                 SettingsView()
             }
             .documentViewer(item: $presentedDocument)
+            .onAppear(perform: consumeQuickAction)
+            .onChange(of: quickActions.pending) { _, _ in
+                consumeQuickAction()
+            }
         }
+    }
+
+    /// Fulfills the "Import Files" app-icon quick action when this tab is on
+    /// screen; other destinations are left for their own tabs.
+    private func consumeQuickAction() {
+        guard quickActions.pending == .importFiles else { return }
+        quickActions.pending = nil
+        isImporting = true
     }
 
     // MARK: - List

@@ -11,6 +11,10 @@ struct DocumentsApp: App {
     /// App-scoped device library: created once, injected via the environment,
     /// so indexing survives tab switches and view churn.
     @State private var library = DeviceLibraryService()
+    /// App-icon quick actions (Scan / Import / New Text), routed to tabs.
+    @State private var quickActions = QuickActionRouter()
+    /// Bridges UIKit's shortcut delivery to `QuickActionRouter`.
+    @UIApplicationDelegateAdaptor(QuickActionDelegate.self) private var quickActionDelegate
 
     init() {
         do {
@@ -22,6 +26,7 @@ struct DocumentsApp: App {
             fatalError("Failed to create SwiftData container: \(error)")
         }
         _store = State(initialValue: DocumentStore(context: container.mainContext))
+        QuickActionRouter.installShortcutItems()
     }
 
     var body: some Scene {
@@ -29,6 +34,7 @@ struct DocumentsApp: App {
             HomeView()
                 .environment(store)
                 .environment(library)
+                .environment(quickActions)
                 .task {
                     // Remove temp artifacts left behind by previous runs
                     // (crash, force quit) that the in-registry cleanup missed.

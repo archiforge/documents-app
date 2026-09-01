@@ -12,6 +12,8 @@ struct ToolsTab: View {
 
     @State private var route: ToolRoute?
     @State private var showNewDocument = false
+    /// App-icon quick actions: "Scan Document" and "New Text" land here.
+    @Environment(QuickActionRouter.self) private var quickActions
     /// The direct camera pass: presented first on a scan-tool tap so the
     /// camera is the first thing on screen. `ScannerFlowView` takes over
     /// with the captured pages once this cover is fully gone.
@@ -131,6 +133,27 @@ struct ToolsTab: View {
                 Text(entryPass?.failureMessage ?? "")
             }
             .documentViewer(item: $presentedDocument)
+            .onAppear(perform: consumeQuickAction)
+            .onChange(of: quickActions.pending) { _, _ in
+                consumeQuickAction()
+            }
+        }
+    }
+
+    /// Fulfills the "Scan Document" and "New Text" app-icon quick actions
+    /// when this tab is on screen; other destinations are left for their
+    /// own tabs.
+    private func consumeQuickAction() {
+        guard let pending = quickActions.pending else { return }
+        switch pending {
+        case .scan:
+            quickActions.pending = nil
+            openScanEntry(mode: .document)
+        case .newDocument:
+            quickActions.pending = nil
+            showNewDocument = true
+        case .importFiles:
+            break // Recent's importer handles it.
         }
     }
 

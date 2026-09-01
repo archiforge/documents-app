@@ -58,6 +58,7 @@
 		6ECD0C3E70D1F95FC2D000AD /* DeviceLibraryService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CC1281CBE8D707987C112CA /* DeviceLibraryService.swift */; };
 		6F4D2A9B82456EAAE7A00CE0 /* ArchiveService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B216FFF1E526859682EA20D /* ArchiveService.swift */; };
 		723FD7D9D5193536DB33964F /* DocumentStoreDuplicateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B324455DEE6E82AEC8C1FAFC /* DocumentStoreDuplicateTests.swift */; };
+		7DD50B3158B091A06531A89C /* QuickActionRouterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC7FEFF43DC1920041292379 /* QuickActionRouterTests.swift */; };
 		887B0DF78491F253526B173B /* TempArtifactTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97549C6349723E36CC422588 /* TempArtifactTracker.swift */; };
 		889FF0B08D1852F0F6CD4A6D /* ConvertFlowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15516E35FD47AE14BD8FBA92 /* ConvertFlowView.swift */; };
 		8ABB950182EAF96F59C9D977 /* FormatFilter.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF2F98775797FBBC7A8BA58D /* FormatFilter.swift */; };
@@ -74,6 +75,7 @@
 		A444F50369DAAF4F61BB65A2 /* ScannerFlowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87631C9060EBCBFD9F19B241 /* ScannerFlowView.swift */; };
 		A458C8469027A5120CB1A4A9 /* ConversionTarget.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA4F6FF200F0372C1E8BD022 /* ConversionTarget.swift */; };
 		A987A3D72486700802F4F54B /* TrashPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA576C71B4E4FC3500418DDA /* TrashPolicyTests.swift */; };
+		B2B06E23A34D5919B3347A41 /* QuickActionRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D2A2FF788273853DC989D30 /* QuickActionRouter.swift */; };
 		B31785CFEB00B9A47D48AECE /* HTMLToPDF.swift in Sources */ = {isa = PBXBuildFile; fileRef = FAB12A6CBC9EC9E0482CE4BA /* HTMLToPDF.swift */; };
 		B5D3263986397CFC1C3B8C0C /* FolderGrantService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C9442A63434F4B1E8A969BB /* FolderGrantService.swift */; };
 		BA2705D6CCFEAFE3F67D98E5 /* DocumentViewerScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = 655B80FF56660BC25210BA7C /* DocumentViewerScreen.swift */; };
@@ -119,6 +121,7 @@
 		108364BA2C2FBBF023115C85 /* ScanEntryPassTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanEntryPassTests.swift; sourceTree = "<group>"; };
 		15516E35FD47AE14BD8FBA92 /* ConvertFlowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConvertFlowView.swift; sourceTree = "<group>"; };
 		178DF6725D457B1A3E5FA897 /* DocumentKindTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentKindTests.swift; sourceTree = "<group>"; };
+		1D2A2FF788273853DC989D30 /* QuickActionRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickActionRouter.swift; sourceTree = "<group>"; };
 		1F051ED4FB73C35D9411E917 /* DocumentsSchemaMigrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentsSchemaMigrationTests.swift; sourceTree = "<group>"; };
 		220329AA737B9AEBD6BAD5F3 /* PDFPrinter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFPrinter.swift; sourceTree = "<group>"; };
 		2617421205B2BD93DCB400BF /* PresentedDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresentedDocument.swift; sourceTree = "<group>"; };
@@ -192,6 +195,7 @@
 		DD5538F3C975CB959E253CA7 /* DocumentStoreOwnershipTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentStoreOwnershipTests.swift; sourceTree = "<group>"; };
 		E0C44FFAB5B9356CEF5B841E /* ArchiveServiceTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArchiveServiceTests.swift; sourceTree = "<group>"; };
 		E5E87D92FDA5265BA7CECBE8 /* PDFAssemblerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PDFAssemblerTests.swift; sourceTree = "<group>"; };
+		EC7FEFF43DC1920041292379 /* QuickActionRouterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickActionRouterTests.swift; sourceTree = "<group>"; };
 		EF82748DEE0031173A85E0C0 /* ToolsTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolsTab.swift; sourceTree = "<group>"; };
 		F0A2CA7900D0440E95D0F3CD /* StartupRecoveryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StartupRecoveryTests.swift; sourceTree = "<group>"; };
 		F34C25646EC3AF458718C5FE /* Documents.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Documents.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -410,6 +414,7 @@
 				E5E87D92FDA5265BA7CECBE8 /* PDFAssemblerTests.swift */,
 				F952BDB40E5992BA75FD6417 /* PDFToolboxTests.swift */,
 				2D729AD96AB1639408D538C4 /* PDFWatermarkPageBoxTests.swift */,
+				EC7FEFF43DC1920041292379 /* QuickActionRouterTests.swift */,
 				6E79CE86C504E96F88901D69 /* RenameFormTests.swift */,
 				108364BA2C2FBBF023115C85 /* ScanEntryPassTests.swift */,
 				3D504C4A2E36BAF04A958CF6 /* ScanNamingTests.swift */,
@@ -465,6 +470,7 @@
 			isa = PBXGroup;
 			children = (
 				7773399D584D8A501A6647E3 /* DateStamp.swift */,
+				1D2A2FF788273853DC989D30 /* QuickActionRouter.swift */,
 				4F598818EBE4387784F32545 /* StartupRecovery.swift */,
 				D2B6C24858CC11EAE698D45C /* StoreFailureAlert.swift */,
 				97549C6349723E36CC422588 /* TempArtifactTracker.swift */,
@@ -618,6 +624,7 @@
 				4127B053FEB86CBC14759CF6 /* PDFToolsView.swift in Sources */,
 				222A2E1361DC980047A169E3 /* PresentedDocument.swift in Sources */,
 				96110F3EC2A7D07603A668EC /* Provenance.swift in Sources */,
+				B2B06E23A34D5919B3347A41 /* QuickActionRouter.swift in Sources */,
 				9992004A1166532E8429FCF6 /* QuickLookPreview.swift in Sources */,
 				EA31D749DC7A34894544142A /* RecentTab.swift in Sources */,
 				FA560FAF1E0C4F856B5419DA /* ScanEntryPass.swift in Sources */,
@@ -663,6 +670,7 @@
 				C9E04E06314BAA6192C17841 /* PDFAssemblerTests.swift in Sources */,
 				F9A9EF5419A951B3FE26D807 /* PDFToolboxTests.swift in Sources */,
 				C2AD70D2DFE39A8C3D24E553 /* PDFWatermarkPageBoxTests.swift in Sources */,
+				7DD50B3158B091A06531A89C /* QuickActionRouterTests.swift in Sources */,
 				34745FC275B2DB0FBD39F486 /* RenameFormTests.swift in Sources */,
 				56D49FA77801DE4A396ACDE0 /* ScanEntryPassTests.swift in Sources */,
 				18590BF048CEF12BD497BC8B /* ScanNamingTests.swift in Sources */,
