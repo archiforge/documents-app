@@ -181,15 +181,11 @@ struct RecentTab: View {
         DocumentRow(record: document) {
             open(document)
         }
-        .contextMenu {
-            if document.kind == .pdf {
-                Button {
-                    pdfToolsSource = document
-                } label: {
-                    Label("PDF Tools", systemImage: "wrench.and.screwdriver")
-                }
-            }
-        }
+        .documentActions(
+            record: document,
+            onOpen: { open(document) },
+            onPDFTools: document.kind == .pdf ? { pdfToolsSource = document } : nil
+        )
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             Button(role: .destructive) {
                 do {

@@ -13,6 +13,7 @@ enum DocumentKind: String, Codable, CaseIterable, Sendable {
     case image
     case archive
     case ofd
+    case epub
     case other
 
     init(filename: String) {
@@ -22,6 +23,8 @@ enum DocumentKind: String, Codable, CaseIterable, Sendable {
             self = .pdf
         case "ofd":
             self = .ofd
+        case "epub":
+            self = .epub
         case "doc", "docx", "dot", "dotx", "rtf", "pages":
             self = .word
         case "xls", "xlsx", "csv", "numbers":
@@ -56,6 +59,7 @@ enum DocumentKind: String, Codable, CaseIterable, Sendable {
         case .image: "photo"
         case .archive: "doc.zipper"
         case .ofd: "doc.badge.gearshape"
+        case .epub: "book"
         case .other: "doc"
         }
     }
@@ -73,6 +77,7 @@ enum DocumentKind: String, Codable, CaseIterable, Sendable {
         case .image: "Image"
         case .archive: "Archive"
         case .ofd: "OFD"
+        case .epub: "EPUB"
         case .other: "Document"
         }
     }

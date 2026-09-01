@@ -164,6 +164,44 @@ final class DocumentStore {
         return Set(records.map(\.fileURL.standardizedFileURL.path))
     }
 
+    // MARK: - Duplicate
+
+    /// Copies the file into the container under a deduped " (n)" name and
+    /// records the copy, keeping the original's kind and provenance. External
+    /// records are copied into the container; the indexed source is never
+    /// touched. The duplicate is a fresh document: its own dates, not a
+    /// favorite, not trashed.
+    @discardableResult
+    func duplicate(_ record: DocumentRecord) throws -> DocumentRecord {
+        // Resolve through the store's bridge, not `record.fileURL` (which
+        // re-resolves through a default bridge and ignores the injected
+        // test/documents directory).
+        let sourceURL = record.absolutePath.map { URL(fileURLWithPath: $0) }
+            ?? fileBridge.absoluteURL(forRelativePath: record.relativePath)
+        let copied = try fileBridge.importFile(from: sourceURL)
+        let relativePath = fileBridge.relativePath(for: copied.url)
+        let copy = DocumentRecord(
+            displayName: copied.url.lastPathComponent,
+            relativePath: relativePath,
+            kind: record.kind,
+            sizeBytes: copied.sizeBytes,
+            lastOpenedAt: now(),
+            importedAt: now(),
+            provenance: record.provenance
+        )
+        context.insert(copy)
+        do {
+            try save()
+        } catch {
+            context.rollback()
+            // The copy is invisible until saved; remove it so a failed
+            // duplicate never leaves an untracked file behind.
+            try? fileBridge.deleteFile(atRelativePath: relativePath)
+            throw error
+        }
+        return copy
+    }
+
     // MARK: - Rename
 
     /// Renames an app-owned document: moves the file inside its directory,

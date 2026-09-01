@@ -14,6 +14,8 @@ final class DocumentKindTests: XCTestCase {
         XCTAssertEqual(DocumentKind(filename: "i.zip"), .archive)
         XCTAssertEqual(DocumentKind(filename: "k.ofd"), .ofd)
         XCTAssertEqual(DocumentKind(filename: "l.OFD"), .ofd)
+        XCTAssertEqual(DocumentKind(filename: "m.epub"), .epub)
+        XCTAssertEqual(DocumentKind(filename: "n.EPUB"), .epub)
         XCTAssertEqual(DocumentKind(filename: "j.unknownext"), .other)
         XCTAssertEqual(DocumentKind(filename: "noextension"), .other)
     }
