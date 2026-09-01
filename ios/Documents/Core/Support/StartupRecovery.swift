@@ -22,6 +22,8 @@ enum StartupRecovery {
     ///    device library prunes vanished external files on its own pass.
     /// 2. Thumbnail cache entries that no longer match a current record's
     ///    key are swept.
+    /// 3. Records predating the `createdAt` field get the file's real
+    ///    creation date backfilled (unknowable ones retry next launch).
     @MainActor
     static func run(store: DocumentStore, thumbnails: ThumbnailStore = .shared) async {
         do {
@@ -54,6 +56,17 @@ enum StartupRecovery {
             await thumbnails.sweep(keeping: keep, preservingIDs: unstatable)
         } catch {
             recoveryLog.error("Thumbnail cache sweep failed: \(error.localizedDescription)")
+        }
+
+        do {
+            for record in try fetchAll(store) where record.createdAt == nil {
+                let url = record.absolutePath.map { URL(fileURLWithPath: $0) }
+                    ?? store.fileBridge.absoluteURL(forRelativePath: record.relativePath)
+                guard let created = FileBridge.creationDate(at: url) else { continue }
+                try store.setCreationDate(created, for: record)
+            }
+        } catch {
+            recoveryLog.error("Creation-date backfill failed: \(error.localizedDescription)")
         }
     }
 

@@ -74,11 +74,12 @@ final class DocumentsSchemaMigrationTests: XCTestCase {
         try context.save()
     }
 
-    /// Reopens the seeded store through the V2 schema plus migration plan.
+    /// Reopens the seeded store through the current schema plus migration
+    /// plan.
     private func openMigratedStore() throws -> ModelContainer {
         let configuration = ModelConfiguration(url: storeURL)
         return try ModelContainer(
-            for: Schema(versionedSchema: SchemaV2.self),
+            for: Schema(versionedSchema: SchemaV3.self),
             migrationPlan: DocumentsSchemaMigrationPlan.self,
             configurations: configuration
         )
@@ -109,6 +110,12 @@ final class DocumentsSchemaMigrationTests: XCTestCase {
         XCTAssertEqual(document.provenance, .scanned)
         XCTAssertNil(document.absolutePath)
         XCTAssertNil(document.pageCount, "new V2 fields must default to nil after migration")
+        XCTAssertNil(document.createdAt, "new V3 fields must default to nil after migration")
+        XCTAssertEqual(
+            document.creationDate,
+            importedAt,
+            "without a known file creation date the creation date falls back to import time"
+        )
 
         let grants = try context.fetch(FetchDescriptor<FolderGrant>())
         XCTAssertEqual(grants.count, 1)
@@ -144,5 +151,71 @@ final class DocumentsSchemaMigrationTests: XCTestCase {
         XCTAssertEqual(refetched.count, 2)
         XCTAssertEqual(refetched.first { $0.id == documentID }?.pageCount, 12)
         XCTAssertEqual(refetched.first { $0.id == fresh.id }?.pageCount, 3)
+    }
+
+    // MARK: - V2 → V3
+
+    /// Seeds a store with the V2 schema (pageCount present, no createdAt).
+    private func seedV2Store() throws {
+        let configuration = ModelConfiguration(url: storeURL)
+        let container = try ModelContainer(
+            for: Schema(versionedSchema: SchemaV2.self),
+            configurations: configuration
+        )
+        let context = ModelContext(container)
+
+        let document = SchemaV2.DocumentRecord(
+            id: documentID,
+            displayName: "Annual Report.pdf",
+            relativePath: "Reports/Annual Report.pdf",
+            kind: .pdf,
+            sizeBytes: 42_024,
+            lastOpenedAt: lastOpenedAt,
+            importedAt: importedAt,
+            isFavorite: true,
+            isTrashed: false,
+            provenance: .scanned,
+            pageCount: 7
+        )
+        context.insert(document)
+        try context.save()
+    }
+
+    func testV2StoreMigratesToV3PreservingEveryField() throws {
+        try seedV2Store()
+        let container = try openMigratedStore()
+        let context = container.mainContext
+
+        let documents = try context.fetch(FetchDescriptor<DocumentRecord>())
+        XCTAssertEqual(documents.count, 1)
+        let document = try XCTUnwrap(documents.first)
+        XCTAssertEqual(document.id, documentID)
+        XCTAssertEqual(document.importedAt, importedAt)
+        XCTAssertEqual(document.lastOpenedAt, lastOpenedAt)
+        XCTAssertEqual(document.pageCount, 7, "V2 fields survive the V3 migration")
+        XCTAssertNil(document.createdAt, "createdAt defaults to nil; startup recovery backfills it")
+        XCTAssertEqual(document.creationDate, importedAt)
+    }
+
+    func testV3StoreWritesCreationDates() throws {
+        try seedV2Store()
+        let container = try openMigratedStore()
+        let context = container.mainContext
+
+        let known = Date(timeIntervalSince1970: 1_700_000_000)
+        let fresh = DocumentRecord(
+            displayName: "Created.pdf",
+            relativePath: "Created.pdf",
+            kind: .pdf,
+            sizeBytes: 1,
+            importedAt: importedAt,
+            createdAt: known
+        )
+        context.insert(fresh)
+        try context.save()
+
+        let refetched = try context.fetch(FetchDescriptor<DocumentRecord>())
+        XCTAssertEqual(refetched.first { $0.id == fresh.id }?.createdAt, known)
+        XCTAssertEqual(refetched.first { $0.id == fresh.id }?.creationDate, known)
     }
 }

@@ -134,4 +134,10 @@ struct FileBridge: Sendable {
         else { return 0 }
         return Int64(size)
     }
+
+    /// The file's actual creation date (APFS birth time), independent of when
+    /// the app imported or adopted it. nil when the file can't be stat'd.
+    static func creationDate(at url: URL) -> Date? {
+        (try? url.resourceValues(forKeys: [.creationDateKey]))?.creationDate
+    }
 }

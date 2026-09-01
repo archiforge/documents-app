@@ -140,11 +140,11 @@ struct RecentTab: View {
 
     @ViewBuilder
     private func dateSections(_ records: [DocumentRecord]) -> some View {
-        let groups = DateGrouping.groups(for: records.map(\.importedAt))
+        let groups = DateGrouping.groups(for: records.map(\.creationDate))
         ForEach(groups) { group in
             Section {
                 if !collapsedGroups.contains(group.key) {
-                    ForEach(records.filter { sameGroup($0.importedAt, as: group) }) { document in
+                    ForEach(records.filter { sameGroup($0.creationDate, as: group) }) { document in
                         row(for: document)
                     }
                 }
@@ -155,7 +155,7 @@ struct RecentTab: View {
     }
 
     private func groupHeader(_ group: DateGrouping.Group, records: [DocumentRecord]) -> some View {
-        let count = records.filter { sameGroup($0.importedAt, as: group) }.count
+        let count = records.filter { sameGroup($0.creationDate, as: group) }.count
         let isCollapsed = collapsedGroups.contains(group.key)
         return Button {
             toggleGroup(group.key)

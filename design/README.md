@@ -93,7 +93,7 @@ or demo frame (`m_*` main, `sm_*` scan).
 | 4 | Sources = Files imports + granted folders instead of Messenger/WhatsApp/Download/Bluetooth (R4.2) | Android source apps don't map to iOS; grants shipped |
 | 5 | VisionKit native camera chrome replaces external scanner package (R5.1) | no third-party scanner app on iOS; platform substitution |
 | 6 | Underline-selected chips, iOS glass tab bar, system fonts (all frames) | iOS-native styling over Android pixel copy; clean-room rule |
-| 7 | Sort menu (R3.12): Sort By Date / Name / Size / Type + Descending/Ascending, default Date ↓ where **Date = creation date** (`importedAt`); day groups only while sorting by date | no recorded demo UI; product decision 2026-09-01, refined same day to creation date — opening a document no longer reorders the list |
+| 7 | Sort menu (R3.12): Sort By Date / Name / Size / Type + Descending/Ascending, default Date ↓ where **Date = the file's actual creation date** (`createdAt` from file metadata, backfilled at launch, falls back to `importedAt`); day groups only while sorting by date | no recorded demo UI; product decision 2026-09-01, refined same day from last-opened → import time → real file creation date; row hints show the same date |
 
 ## Working agreements
 

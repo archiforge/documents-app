@@ -79,7 +79,8 @@ final class DocumentStore {
             sizeBytes: imported.sizeBytes,
             lastOpenedAt: now(),
             importedAt: now(),
-            provenance: .imported
+            provenance: .imported,
+            createdAt: FileBridge.creationDate(at: imported.url)
         )
         context.insert(record)
         try context.save()
@@ -125,7 +126,8 @@ final class DocumentStore {
             lastOpenedAt: now(),
             importedAt: now(),
             provenance: provenance,
-            absolutePath: absolutePath
+            absolutePath: absolutePath,
+            createdAt: FileBridge.creationDate(at: url)
         )
         context.insert(record)
         try context.save()
@@ -149,7 +151,8 @@ final class DocumentStore {
             sizeBytes: FileBridge.fileSize(at: url),
             lastOpenedAt: now(),
             importedAt: now(),
-            provenance: .created
+            provenance: .created,
+            createdAt: FileBridge.creationDate(at: url)
         )
         context.insert(record)
         try context.save()
@@ -187,7 +190,8 @@ final class DocumentStore {
             sizeBytes: copied.sizeBytes,
             lastOpenedAt: now(),
             importedAt: now(),
-            provenance: record.provenance
+            provenance: record.provenance,
+            createdAt: FileBridge.creationDate(at: copied.url)
         )
         context.insert(copy)
         do {
@@ -295,6 +299,20 @@ final class DocumentStore {
             try save()
         } catch {
             record.pageCount = previous
+            throw error
+        }
+    }
+
+    /// Persists the file's real creation date, recovered by startup recovery
+    /// for records that predate the `createdAt` field. Only fills a nil
+    /// value; a known creation date is never overwritten.
+    func setCreationDate(_ date: Date, for record: DocumentRecord) throws {
+        guard record.createdAt == nil else { return }
+        record.createdAt = date
+        do {
+            try save()
+        } catch {
+            record.createdAt = nil
             throw error
         }
     }

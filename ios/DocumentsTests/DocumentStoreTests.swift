@@ -196,4 +196,39 @@ final class DocumentStoreTests: XCTestCase {
         XCTAssertTrue(fileExists("Ideas.md"))
         XCTAssertEqual(try store.fetchRecent().map(\.id), [record.id])
     }
+
+    // MARK: - Creation dates
+
+    func testAdoptFileRecordsTheFilesRealCreationDate() throws {
+        let external = tempRoot.appendingPathComponent("External/Old Contract.pdf")
+        try FileManager.default.createDirectory(
+            at: external.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try Data("legacy".utf8).write(to: external)
+        let knownCreation = Date(timeIntervalSince1970: 946_684_800)
+        try FileManager.default.setAttributes([.creationDate: knownCreation], ofItemAtPath: external.path)
+
+        let record = try store.adoptFile(at: external, absolutePath: external.path)
+
+        XCTAssertEqual(record.createdAt, knownCreation)
+        XCTAssertEqual(record.creationDate, knownCreation)
+    }
+
+    func testImportFileRecordsACreationDateFromDisk() throws {
+        // The copy's birth time is filesystem-dependent; assert presence,
+        // not the exact value.
+        let record = try store.importFile(from: makeSourceFile(named: "Report.pdf"))
+
+        XCTAssertNotNil(record.createdAt)
+        XCTAssertEqual(record.creationDate, record.createdAt)
+    }
+
+    func testDuplicateGetsItsOwnCreationDate() throws {
+        let original = try store.importFile(from: makeSourceFile(named: "Original.pdf"))
+
+        let copy = try store.duplicate(original)
+
+        XCTAssertNotNil(copy.createdAt, "a duplicate is a fresh file with its own dates")
+    }
 }

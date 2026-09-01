@@ -193,4 +193,48 @@ final class StartupRecoveryTests: XCTestCase {
         let entries = try FileManager.default.contentsOfDirectory(atPath: cacheDir.path)
         XCTAssertTrue(entries.isEmpty)
     }
+
+    // MARK: - Creation-date backfill
+
+    func testNilCreationDateIsBackfilledFromTheFile() async throws {
+        let record = try makeRecord(named: "Old.pdf")
+        let fileCreation = try XCTUnwrap(
+            FileBridge.creationDate(at: documentsDir.appendingPathComponent("Old.pdf"))
+        )
+        record.createdAt = nil
+
+        await StartupRecovery.run(store: store, thumbnails: thumbnails)
+
+        let refetched = try XCTUnwrap(try store.fetchRecent().first)
+        XCTAssertEqual(refetched.id, record.id)
+        XCTAssertEqual(refetched.createdAt, fileCreation)
+    }
+
+    func testKnownCreationDateIsNotOverwritten() async throws {
+        let record = try makeRecord(named: "Keep.pdf")
+        let sentinel = Date(timeIntervalSince1970: 123_456)
+        record.createdAt = sentinel
+
+        await StartupRecovery.run(store: store, thumbnails: thumbnails)
+
+        XCTAssertEqual(
+            try store.fetchRecent().first?.createdAt,
+            sentinel,
+            "backfill only fills unknown creation dates"
+        )
+    }
+
+    func testUnstatableFileStaysWithoutCreationDateAndRetriesNextLaunch() async throws {
+        let missing = tempRoot.appendingPathComponent("External/Missing.pdf")
+        let record = try store.adoptFile(at: missing, absolutePath: missing.path)
+        XCTAssertNil(record.createdAt, "adopting a vanished file cannot know its creation date")
+
+        await StartupRecovery.run(store: store, thumbnails: thumbnails)
+
+        XCTAssertEqual(
+            try store.fetchRecent().first?.createdAt,
+            nil,
+            "unstatable records keep nil and retry on the next launch"
+        )
+    }
 }

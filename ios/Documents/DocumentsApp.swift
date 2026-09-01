@@ -15,7 +15,7 @@ struct DocumentsApp: App {
     init() {
         do {
             container = try ModelContainer(
-                for: Schema(versionedSchema: SchemaV2.self),
+                for: Schema(versionedSchema: SchemaV3.self),
                 migrationPlan: DocumentsSchemaMigrationPlan.self
             )
         } catch {

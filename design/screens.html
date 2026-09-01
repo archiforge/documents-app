@@ -614,7 +614,7 @@
         <h4>No recorded UI in the demo</h4>
         <ol>
           <li><span class="id warn">R3.12</span><span><b>Search</b> — propose native <code>.searchable</code> field over name (filters within active chip). Demo only shows the toolbar icon</span></li>
-          <li><span class="id ok">R3.12</span><span><b>Sort</b> — <b>decided 2026-09-01, shipped</b>: toolbar menu on <code>arrow.up.arrow.down</code>: Sort By <b>Date / Name / Size / Type</b> + Order <b>Descending / Ascending</b>, default Date ↓. <b>Date = creation date</b> (<code>importedAt</code>, refined from last-opened same day); day groups follow the same date and show only while sorting by date — other fields flatten the list</span></li>
+          <li><span class="id ok">R3.12</span><span><b>Sort</b> — <b>decided 2026-09-01, shipped</b>: toolbar menu on <code>arrow.up.arrow.down</code>: Sort By <b>Date / Name / Size / Type</b> + Order <b>Descending / Ascending</b>, default Date ↓. <b>Date = the file's actual creation date</b> (<code>createdAt</code> from file metadata, backfilled at launch, falls back to import time); day groups follow the same date and show only while sorting by date — other fields flatten the list</span></li>
           <li><span class="id">R3.7</span><span><b>FAB action</b> — demo's pencil FAB has no recorded menu; propose: Scan documents / New document (matches existing <code>NewDocumentSheet</code>)</span></li>
           <li><span class="id warn">—</span><span>Decide these three before P3 UI work starts; record decisions in README divergence ledger</span></li>
         </ol>
