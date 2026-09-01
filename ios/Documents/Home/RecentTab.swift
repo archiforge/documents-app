@@ -19,6 +19,7 @@ struct RecentTab: View {
     private var documents: [DocumentRecord]
 
     @State private var filter: FormatFilter = .all
+    @State private var sort = DocumentSort.defaultSort
     @State private var collapsedGroups: Set<String> = []
 
     @State private var isImporting = false
@@ -30,7 +31,7 @@ struct RecentTab: View {
     @State private var failureText: String?
 
     private var filtered: [DocumentRecord] {
-        documents.filter { filter.matches($0) }
+        sort.sorted(documents.filter { filter.matches($0) })
     }
 
     var body: some View {
@@ -59,6 +60,9 @@ struct RecentTab: View {
                         }
                         .accessibilityLabel("Settings")
                     }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    sortMenu
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Import", systemImage: "square.and.arrow.down") {
@@ -91,30 +95,62 @@ struct RecentTab: View {
 
     // MARK: - List
 
+    /// Sort/order-by menu (board R3.2/R3.12). Date keeps the day-grouped
+    /// layout; other fields render a flat list.
+    private var sortMenu: some View {
+        Menu {
+            Picker("Sort By", selection: $sort.field) {
+                ForEach(DocumentSort.Field.allCases) { field in
+                    Text(field.title).tag(field)
+                }
+            }
+            Picker("Order", selection: $sort.isDescending) {
+                Text("Descending").tag(true)
+                Text("Ascending").tag(false)
+            }
+        } label: {
+            Image(systemName: "arrow.up.arrow.down")
+        }
+        .accessibilityLabel("Sort")
+    }
+
     private var documentList: some View {
         let records = filtered
-        let groups = DateGrouping.groups(for: records.map(\.lastOpenedAt))
         return List {
             Section {
                 Text("\(records.count) in total")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
-            ForEach(groups) { group in
+            if sort.field == .date {
+                dateSections(records)
+            } else {
                 Section {
-                    if !collapsedGroups.contains(group.key) {
-                        ForEach(records.filter { sameGroup($0.lastOpenedAt, as: group) }) { document in
-                            row(for: document)
-                        }
+                    ForEach(records) { document in
+                        row(for: document)
                     }
-                } header: {
-                    groupHeader(group, records: records)
                 }
             }
         }
         .listStyle(.plain)
         .fullScreenCover(item: $pdfToolsSource) { record in
             PDFToolsScreen(source: record)
+        }
+    }
+
+    @ViewBuilder
+    private func dateSections(_ records: [DocumentRecord]) -> some View {
+        let groups = DateGrouping.groups(for: records.map(\.lastOpenedAt))
+        ForEach(groups) { group in
+            Section {
+                if !collapsedGroups.contains(group.key) {
+                    ForEach(records.filter { sameGroup($0.lastOpenedAt, as: group) }) { document in
+                        row(for: document)
+                    }
+                }
+            } header: {
+                groupHeader(group, records: records)
+            }
         }
     }
 
