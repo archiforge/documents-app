@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		04B2D07D57CABC4BBE5F22C6 /* DocumentSearch.swift in Sources */ = {isa = PBXBuildFile; fileRef = C85C4F6C826DEB4AC7957006 /* DocumentSearch.swift */; };
 		05DAE6F0D2AD8F589958F907 /* FolderGrantServiceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00BAB6741291BEDE1617A982 /* FolderGrantServiceTests.swift */; };
 		064CD99FBCC6B98AA68E9B6A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AC6ED58F2CFD7E1844824B72 /* Assets.xcassets */; };
 		080ADC68463D20D6A67B634F /* BrowseTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB812D5377E5E003163F1C08 /* BrowseTab.swift */; };
@@ -71,6 +72,7 @@
 		9992004A1166532E8429FCF6 /* QuickLookPreview.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9E534EE4E8BC9D68D28017C /* QuickLookPreview.swift */; };
 		9B2BBF6F85E4CA5E9ADF57A9 /* DocumentRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 73C08426ABB906BE87163E4E /* DocumentRow.swift */; };
 		9E368F3BE48961F48D74813E /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 106532EC50A9538F5668861D /* SettingsView.swift */; };
+		9E78558E3E0CCC5F3BDCE008 /* DocumentSearchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55B66466169D4977B0C777CC /* DocumentSearchTests.swift */; };
 		A0119724D14E647EB177541A /* ScanningService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0198B59315735C00787D679C /* ScanningService.swift */; };
 		A444F50369DAAF4F61BB65A2 /* ScannerFlowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87631C9060EBCBFD9F19B241 /* ScannerFlowView.swift */; };
 		A458C8469027A5120CB1A4A9 /* ConversionTarget.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA4F6FF200F0372C1E8BD022 /* ConversionTarget.swift */; };
@@ -146,6 +148,7 @@
 		508ABAD0CAE64DB4C660C38B /* DocumentActions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentActions.swift; sourceTree = "<group>"; };
 		53981F6D45DC88E058C862A8 /* Provenance.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Provenance.swift; sourceTree = "<group>"; };
 		55A188B0812C1AFD3F2CC704 /* DocumentSort.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentSort.swift; sourceTree = "<group>"; };
+		55B66466169D4977B0C777CC /* DocumentSearchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentSearchTests.swift; sourceTree = "<group>"; };
 		591F01C6EE18E5A8778377EF /* FormatFilterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormatFilterTests.swift; sourceTree = "<group>"; };
 		5FC3447C3B5B67D771CC0B31 /* RecentTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentTab.swift; sourceTree = "<group>"; };
 		6124B3ED8C75388414732E64 /* LongImageAssembler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LongImageAssembler.swift; sourceTree = "<group>"; };
@@ -185,6 +188,7 @@
 		BED0CB2C07DE7F1877C54B47 /* DateGroupingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DateGroupingTests.swift; sourceTree = "<group>"; };
 		BF2F98775797FBBC7A8BA58D /* FormatFilter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormatFilter.swift; sourceTree = "<group>"; };
 		C68CF383C6999B4D25C6CB63 /* ThumbnailStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThumbnailStoreTests.swift; sourceTree = "<group>"; };
+		C85C4F6C826DEB4AC7957006 /* DocumentSearch.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentSearch.swift; sourceTree = "<group>"; };
 		C9E534EE4E8BC9D68D28017C /* QuickLookPreview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickLookPreview.swift; sourceTree = "<group>"; };
 		D0CD29F47389B02D8827634B /* ScanEntryPass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanEntryPass.swift; sourceTree = "<group>"; };
 		D2B6C24858CC11EAE698D45C /* StoreFailureAlert.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoreFailureAlert.swift; sourceTree = "<group>"; };
@@ -326,6 +330,7 @@
 			children = (
 				A580CF5D75AAE24059871988 /* DateGrouping.swift */,
 				B27B7E1F925E79107FC6B4A3 /* DocumentKind.swift */,
+				C85C4F6C826DEB4AC7957006 /* DocumentSearch.swift */,
 				55A188B0812C1AFD3F2CC704 /* DocumentSort.swift */,
 				710BA8649857D573B305BCB9 /* DocumentsSchema.swift */,
 				3C664506B52B63FB2421568E /* DocumentStore.swift */,
@@ -401,6 +406,7 @@
 				BED0CB2C07DE7F1877C54B47 /* DateGroupingTests.swift */,
 				F58E4FB6CE57582D3A28986C /* DeviceLibraryTests.swift */,
 				178DF6725D457B1A3E5FA897 /* DocumentKindTests.swift */,
+				55B66466169D4977B0C777CC /* DocumentSearchTests.swift */,
 				67930E04993FAF51DBC3BD07 /* DocumentSortTests.swift */,
 				1F051ED4FB73C35D9411E917 /* DocumentsSchemaMigrationTests.swift */,
 				B324455DEE6E82AEC8C1FAFC /* DocumentStoreDuplicateTests.swift */,
@@ -602,6 +608,7 @@
 				5C1EAB70F5B9635BE9F30992 /* DocumentKind.swift in Sources */,
 				9B2BBF6F85E4CA5E9ADF57A9 /* DocumentRow.swift in Sources */,
 				DACAC6997D4319FF144AE194 /* DocumentScannerView.swift in Sources */,
+				04B2D07D57CABC4BBE5F22C6 /* DocumentSearch.swift in Sources */,
 				5B86B8981837232BB9DC7594 /* DocumentSort.swift in Sources */,
 				6A2FDAC22C4A869FA44E669D /* DocumentStore.swift in Sources */,
 				BA2705D6CCFEAFE3F67D98E5 /* DocumentViewerScreen.swift in Sources */,
@@ -657,6 +664,7 @@
 				2D38BE53F18E4EE87FEAB7DD /* DateGroupingTests.swift in Sources */,
 				C614CA85AD0F3371AD5A166D /* DeviceLibraryTests.swift in Sources */,
 				F82371859BC05C1EB8E0915C /* DocumentKindTests.swift in Sources */,
+				9E78558E3E0CCC5F3BDCE008 /* DocumentSearchTests.swift in Sources */,
 				6850312DAF117E951C1D6B07 /* DocumentSortTests.swift in Sources */,
 				723FD7D9D5193536DB33964F /* DocumentStoreDuplicateTests.swift in Sources */,
 				354585E608A352E375B2A45E /* DocumentStoreOwnershipTests.swift in Sources */,

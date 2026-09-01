@@ -3,8 +3,9 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 /// Recents list with the Android app's format filter chips
-/// (All / Scanned / DOC / XLS / PPT / PDF / OFD / TXT), day grouping
-/// ("Today · 4 files"), and per-row origin captions.
+/// (All / Scanned / DOC / XLS / PPT / PDF / OFD / TXT), a search bar scoped
+/// to the active chip, day grouping ("Today · 4 files"), and per-row origin
+/// captions.
 struct RecentTab: View {
     @Environment(DocumentStore.self) private var store
     /// App-scoped library owned by `DocumentsApp`; indexing survives tab
@@ -22,6 +23,7 @@ struct RecentTab: View {
 
     @State private var filter: FormatFilter = .all
     @State private var sort = DocumentSort.defaultSort
+    @State private var searchText = ""
     @State private var collapsedGroups: Set<String> = []
 
     @State private var isImporting = false
@@ -33,7 +35,15 @@ struct RecentTab: View {
     @State private var failureText: String?
 
     private var filtered: [DocumentRecord] {
-        sort.sorted(documents.filter { filter.matches($0) })
+        sort.sorted(documents.filter {
+            filter.matches($0) && DocumentSearch.matches(searchText, name: $0.displayName)
+        })
+    }
+
+    /// Whether the user typed anything, so an empty result set can be
+    /// attributed to the search rather than the format chip.
+    private var isSearching: Bool {
+        !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     var body: some View {
@@ -42,10 +52,18 @@ struct RecentTab: View {
                 FormatFilterRow(selection: $filter)
                 if documents.isEmpty {
                     emptyState
-                } else if filtered.isEmpty {
-                    filterEmptyState
                 } else {
-                    documentList
+                    // Attached to the stable Group, not the List: the field
+                    // must survive the list↔empty-state swap or it dismisses
+                    // mid-typing whenever the last match disappears.
+                    Group {
+                        if filtered.isEmpty {
+                            resultsEmptyState
+                        } else {
+                            documentList
+                        }
+                    }
+                    .searchable(text: $searchText, prompt: searchPrompt)
                 }
             }
             .navigationTitle("Recent")
@@ -243,15 +261,32 @@ struct RecentTab: View {
         }
     }
 
-    private var filterEmptyState: some View {
-        ContentUnavailableView {
-            Label("No Documents", systemImage: "doc.text.magnifyingglass")
-        } description: {
-            Text("Nothing under \(filter.title) yet.")
+    /// Empty result set: blame the search query when one is active,
+    /// otherwise the format chip.
+    @ViewBuilder
+    private var resultsEmptyState: some View {
+        if isSearching {
+            ContentUnavailableView {
+                Label("No Results", systemImage: "magnifyingglass")
+            } description: {
+                Text("No documents matching \"\(searchText.trimmingCharacters(in: .whitespacesAndNewlines))\".")
+            }
+        } else {
+            ContentUnavailableView {
+                Label("No Documents", systemImage: "doc.text.magnifyingglass")
+            } description: {
+                Text("Nothing under \(filter.title) yet.")
+            }
         }
     }
 
     // MARK: - Helpers
+
+    /// Reflects the active chip so the scoping is visible in the field
+    /// itself ("Search in PDF").
+    private var searchPrompt: Text {
+        filter == .all ? Text("Search") : Text("Search in \(filter.title)")
+    }
 
     private func sameGroup(_ date: Date, as group: DateGrouping.Group) -> Bool {
         DateGrouping.group(for: date).key == group.key
