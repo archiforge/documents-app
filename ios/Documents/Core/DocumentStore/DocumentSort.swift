@@ -1,8 +1,10 @@
 import Foundation
 
 /// The Recent screen's sort control: which common field orders the list and
-/// in which direction. Pure value logic mirroring `FormatFilter` so ordering
-/// is unit-testable without SwiftData queries.
+/// in which direction. Date orders by creation date (`importedAt`), so the
+/// list reflects when documents were added, not when they were last opened.
+/// Pure value logic mirroring `FormatFilter` so ordering is unit-testable
+/// without SwiftData queries.
 struct DocumentSort: Equatable, Sendable {
     /// Fields offered by the sort menu.
     enum Field: String, CaseIterable, Identifiable, Sendable {
@@ -39,7 +41,7 @@ struct DocumentSort: Equatable, Sendable {
         let primary: ComparisonResult
         switch field {
         case .date:
-            primary = lhs.lastOpenedAt.compare(rhs.lastOpenedAt)
+            primary = lhs.importedAt.compare(rhs.importedAt)
         case .name:
             primary = lhs.displayName.localizedCaseInsensitiveCompare(rhs.displayName)
         case .size:
