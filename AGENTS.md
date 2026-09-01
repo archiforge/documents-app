@@ -31,6 +31,11 @@ analysis, not project branding; do not scrub those references.
 - Never commit: `Documents.apk`, `*.mp4`, decompiled APK output, `logs/`,
   `ios/build/`, `.mimosa/`, `.zcode/`.
 
+## Branching
+
+- Create a fresh branch from `master` for each new feature following the naming convention `feature/<feature name>`; never commit feature work directly to
+  `master`.
+
 ## Verification discipline
 
 Work is done only after tests are run with real pass/fail output and the full
