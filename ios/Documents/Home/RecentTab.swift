@@ -13,6 +13,7 @@ struct RecentTab: View {
     @Environment(DeviceLibraryService.self) private var library
     /// App-icon quick actions: "Import Files" lands here.
     @Environment(QuickActionRouter.self) private var quickActions
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     @Query(
         filter: #Predicate<DocumentRecord> { !$0.isTrashed },
@@ -24,6 +25,7 @@ struct RecentTab: View {
     @State private var filter: FormatFilter = .all
     @State private var sort = DocumentSort.defaultSort
     @State private var searchText = ""
+    @State private var isSearchPresented = false
     @State private var collapsedGroups: Set<String> = []
     @State private var selection = BulkSelection()
 
@@ -54,9 +56,9 @@ struct RecentTab: View {
                 if documents.isEmpty {
                     emptyState
                 } else {
-                    // Attached to the stable Group, not the List: the field
-                    // must survive the list↔empty-state swap or it dismisses
-                    // mid-typing whenever the last match disappears.
+                    // Keep the list and its empty result view in one stable
+                    // branch; the searchable modifier lives on the parent
+                    // container below so it survives either swap.
                     Group {
                         if filtered.isEmpty {
                             resultsEmptyState
@@ -64,10 +66,17 @@ struct RecentTab: View {
                             documentList
                         }
                     }
-                    .searchable(text: $searchText, prompt: searchPrompt)
                     .bulkSelectionActions(selection: $selection, selectedRecords: chosen)
                 }
             }
+            // Keep the field attached to the stable Recent container so it
+            // remains available for both the library and empty states.
+            .searchable(
+                text: $searchText,
+                isPresented: $isSearchPresented,
+                placement: .toolbar,
+                prompt: searchPrompt
+            )
             .navigationTitle(selectionTitle)
             .navigationBarTitleDisplayMode(selection.isActive ? .inline : .automatic)
             // iOS 26 merges a bottom bar into the floating tab bar's glass
@@ -83,13 +92,6 @@ struct RecentTab: View {
                     } else if library.isIndexing {
                         ProgressView()
                             .accessibilityLabel("Indexing device documents")
-                    } else {
-                        Button {
-                            showSettings = true
-                        } label: {
-                            Image(systemName: "gearshape")
-                        }
-                        .accessibilityLabel("Settings")
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
@@ -97,6 +99,28 @@ struct RecentTab: View {
                         selectAllButton
                     } else {
                         sortMenu
+                    }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    if !selection.isActive && horizontalSizeClass != .regular {
+                        Button {
+                            isSearchPresented = true
+                        } label: {
+                            Image(systemName: "magnifyingglass")
+                                .frame(minWidth: 44, minHeight: 44)
+                        }
+                        .accessibilityLabel("Search")
+                    }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    if !selection.isActive {
+                        Button {
+                            showSettings = true
+                        } label: {
+                            Image(systemName: "gearshape")
+                                .frame(minWidth: 44, minHeight: 44)
+                        }
+                        .accessibilityLabel("Settings")
                     }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
@@ -135,6 +159,11 @@ struct RecentTab: View {
                 SettingsView()
             }
             .documentViewer(item: $presentedDocument)
+            .overlay(alignment: .bottomTrailing) {
+                if !selection.isActive {
+                    quickActionMenu
+                }
+            }
             .onAppear(perform: consumeQuickAction)
             .onChange(of: quickActions.pending) { _, _ in
                 consumeQuickAction()
@@ -148,6 +177,42 @@ struct RecentTab: View {
         guard quickActions.pending == .importFiles else { return }
         quickActions.pending = nil
         isImporting = true
+    }
+
+    /// The primary Recent action routes through the same app-scoped router as
+    /// app-icon shortcuts. HomeView moves to Tools, where the destination
+    /// consumes the pending action and presents the appropriate flow.
+    private var quickActionMenu: some View {
+        Menu {
+            Button {
+                quickActions.pending = .scan
+            } label: {
+                Label(
+                    "Scan Document",
+                    systemImage: QuickActionRouter.Destination.scan.symbolName
+                )
+            }
+            Button {
+                quickActions.pending = .newDocument
+            } label: {
+                Label(
+                    "New Document",
+                    systemImage: QuickActionRouter.Destination.newDocument.symbolName
+                )
+            }
+        } label: {
+            Image(systemName: "pencil")
+                .font(.title3.weight(.semibold))
+                .foregroundStyle(.white)
+                .frame(width: 56, height: 56)
+                .background(.tint, in: Circle())
+                .shadow(color: .black.opacity(0.2), radius: 5, y: 3)
+        }
+        .accessibilityLabel("Create document")
+        .accessibilityHint("Choose scan or new document")
+        .accessibilityIdentifier("recent-create-menu")
+        .padding(.trailing, 20)
+        .padding(.bottom, 20)
     }
 
     // MARK: - List
@@ -167,6 +232,7 @@ struct RecentTab: View {
             }
         } label: {
             Image(systemName: "arrow.up.arrow.down")
+                .frame(minWidth: 44, minHeight: 44)
         }
         .accessibilityLabel("Sort")
     }
@@ -175,7 +241,7 @@ struct RecentTab: View {
         let records = filtered
         return List {
             Section {
-                Text("\(records.count) in total")
+                Text(AppStrings.totalDocumentCount(records.count))
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
@@ -218,9 +284,13 @@ struct RecentTab: View {
             toggleGroup(group.key)
         } label: {
             HStack {
-                Text("\(group.title) · \(count) file\(count == 1 ? "" : "s")")
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.primary)
+                HStack(spacing: 0) {
+                    Text(group.title)
+                    Text(" · ")
+                    Text(AppStrings.fileCount(count))
+                }
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.primary)
                 Spacer()
                 Image(systemName: "chevron.down")
                     .font(.caption.weight(.semibold))
@@ -231,7 +301,10 @@ struct RecentTab: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("\(group.title), \(count) files\(isCollapsed ? ", collapsed" : "")")
+        .accessibilityLabel(
+            Text("\(group.title), \(AppStrings.fileCountString(count))\(isCollapsed ? ", collapsed" : "")")
+        )
+        .accessibilityHint(isCollapsed ? "Expands this date group" : "Collapses this date group")
     }
 
     @ViewBuilder
@@ -322,9 +395,9 @@ struct RecentTab: View {
     /// instead (board R3.8). Rows selected under a narrower chip/search
     /// stay selected, so the count resolves against the whole library —
     /// it always matches what the bulk bar would act on.
-    private var selectionTitle: String {
+    private var selectionTitle: LocalizedStringKey {
         guard selection.isActive else { return "Recent" }
-        return selection.count == 0 ? "Select Items" : "\(selection.count) Selected"
+        return selection.count == 0 ? "Select Items" : AppStrings.selectedDocumentCount(selection.count)
     }
 
     /// Select-all is scoped to what the chip + search currently show.

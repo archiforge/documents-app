@@ -85,4 +85,11 @@ final class QuickActionRouterTests: XCTestCase {
         XCTAssertEqual(HomeView.tab(for: .newDocument), .tools)
         XCTAssertEqual(HomeView.tab(for: .importFiles), .recent)
     }
+
+    func testHomeShellContainsOnlyRecentToolsAndManageTabs() {
+        XCTAssertEqual(
+            Set(HomeView.HomeTab.allCases),
+            Set([HomeView.HomeTab.recent, .tools, .manage])
+        )
+    }
 }

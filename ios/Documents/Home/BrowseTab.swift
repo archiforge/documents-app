@@ -1,24 +1,44 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Folder browser over the app container's Documents directory.
+/// Folder browser over either the app container or a granted folder.
+/// Granted folders are deliberately read-only; app-owned Documents supports
+/// importing and creating folders.
 struct BrowseTab: View {
+    let rootURL: URL
+    let rootTitle: String
+    let appOwned: Bool
+
     @State private var presentedDocument: PresentedDocument?
 
+    init(
+        rootURL: URL = FileBridge.defaultDocumentsDirectory,
+        rootTitle: String = "Documents",
+        appOwned: Bool = true
+    ) {
+        self.rootURL = rootURL
+        self.rootTitle = rootTitle
+        self.appOwned = appOwned
+    }
+
     var body: some View {
-        NavigationStack {
+        DirectoryContentsView(
+            directoryURL: rootURL,
+            directoryRelativePath: appOwned ? "" : nil,
+            presentedDocument: $presentedDocument,
+            rootTitle: rootTitle,
+            isRoot: true,
+            appOwned: appOwned
+        )
+        .navigationDestination(for: DirectoryContentsView.Route.self) { route in
             DirectoryContentsView(
-                directoryURL: FileBridge.defaultDocumentsDirectory,
+                directoryURL: route.url,
+                directoryRelativePath: route.relativePath,
                 presentedDocument: $presentedDocument,
-                isRoot: true
+                rootTitle: rootTitle,
+                isRoot: false,
+                appOwned: appOwned
             )
-            .navigationDestination(for: URL.self) { url in
-                DirectoryContentsView(
-                    directoryURL: url,
-                    presentedDocument: $presentedDocument,
-                    isRoot: false
-                )
-            }
         }
         .documentViewer(item: $presentedDocument)
     }
@@ -27,8 +47,11 @@ struct BrowseTab: View {
 /// Contents of one directory: folders push deeper, files open in the viewer.
 struct DirectoryContentsView: View {
     let directoryURL: URL
+    let directoryRelativePath: String?
     @Binding var presentedDocument: PresentedDocument?
+    let rootTitle: String
     let isRoot: Bool
+    let appOwned: Bool
 
     @Environment(DocumentStore.self) private var store
     @State private var entries: [Entry] = []
@@ -37,19 +60,31 @@ struct DirectoryContentsView: View {
     @State private var importErrorText = ""
     @State private var pdfToolsSource: DocumentRecord?
     @State private var failureText: String?
+    @State private var showCreateFolder = false
+    @State private var newFolderName = ""
+
+    struct Route: Hashable {
+        let url: URL
+        let relativePath: String?
+    }
 
     struct Entry: Identifiable {
         let name: String
         let url: URL
+        let relativePath: String?
         let isDirectory: Bool
         var id: String { url.path }
+    }
+
+    private var canEdit: Bool {
+        appOwned && directoryRelativePath != nil
     }
 
     var body: some View {
         List {
             ForEach(entries) { entry in
                 if entry.isDirectory {
-                    NavigationLink(value: entry.url) {
+                    NavigationLink(value: Route(url: entry.url, relativePath: entry.relativePath)) {
                         Label(entry.name, systemImage: "folder.fill")
                     }
                 } else {
@@ -84,25 +119,38 @@ struct DirectoryContentsView: View {
         .fullScreenCover(item: $pdfToolsSource) { record in
             PDFToolsScreen(source: record)
         }
-        .navigationTitle(isRoot ? "Browse" : directoryURL.lastPathComponent)
+        .navigationTitle(isRoot ? rootTitle : directoryURL.lastPathComponent)
         .overlay {
             if entries.isEmpty {
                 ContentUnavailableView {
                     Label("No Files", systemImage: "folder")
                 } description: {
-                    Text("This folder is empty. Import files to get started.")
+                    Text(canEdit
+                        ? "This folder is empty. Import files or create a folder to get started."
+                        : "This folder is empty.")
                 } actions: {
-                    Button("Import") {
-                        isImporting = true
+                    if canEdit {
+                        Button("Import") { isImporting = true }
+                            .buttonStyle(.borderedProminent)
                     }
-                    .buttonStyle(.borderedProminent)
                 }
             }
         }
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button("Import", systemImage: "square.and.arrow.down") {
-                    isImporting = true
+            if canEdit {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        Button("Import", systemImage: "square.and.arrow.down") {
+                            isImporting = true
+                        }
+                        Button("New Folder", systemImage: "folder.badge.plus") {
+                            newFolderName = ""
+                            showCreateFolder = true
+                        }
+                    } label: {
+                        Image(systemName: "plus")
+                    }
+                    .accessibilityLabel("Add to folder")
                 }
             }
         }
@@ -111,42 +159,103 @@ struct DirectoryContentsView: View {
             allowedContentTypes: [.data],
             allowsMultipleSelection: true
         ) { result in
-            if let message = importPickerResult(result, store: store) {
+            if let message = importPickerResultIntoCurrentFolder(result) {
                 importErrorText = message
                 showImportError = true
             }
             reload()
         }
-            .alert("Import failed", isPresented: $showImportError) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text(importErrorText)
-            }
-            .storeFailureAlert(message: $failureText)
+        .alert("Import failed", isPresented: $showImportError) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(importErrorText)
+        }
+        .alert("New Folder", isPresented: $showCreateFolder) {
+            TextField("Folder name", text: $newFolderName)
+            Button("Create") { createFolder() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Create a folder inside \(directoryURL.lastPathComponent).")
+        }
+        .storeFailureAlert(message: $failureText)
         .onAppear { reload() }
     }
 
-    private func reload() {
-        var loaded: [Entry] = []
-        if let contents = try? FileManager.default.contentsOfDirectory(
-            at: directoryURL,
-            includingPropertiesForKeys: [.isDirectoryKey],
-            options: [.skipsHiddenFiles]
-        ) {
-            loaded = contents.map { url in
-                let isDirectory = (try? url.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory ?? false
-                return Entry(name: url.lastPathComponent, url: url, isDirectory: isDirectory)
-            }
+    private func importPickerResultIntoCurrentFolder(_ result: Result<[URL], any Error>) -> String? {
+        guard let destinationPath = directoryRelativePath else {
+            return "Files can only be imported into the app's Documents folder."
         }
-        entries = loaded.sorted { lhs, rhs in
+        switch result {
+        case .success(let urls):
+            var failures: [String] = []
+            for url in urls {
+                do {
+                    _ = try store.importFile(from: url, intoRelativeFolder: destinationPath)
+                } catch {
+                    failures.append("\(url.lastPathComponent): \(error.localizedDescription)")
+                }
+            }
+            return failures.isEmpty ? nil : failures.joined(separator: "\n")
+        case .failure(let error):
+            return error.localizedDescription
+        }
+    }
+
+    private func reload() {
+        if canEdit, let relativePath = directoryRelativePath {
+            do {
+                entries = try store.fileBridge.folderContents(relativePath: relativePath).map {
+                    Entry(
+                        name: $0.name,
+                        url: $0.url,
+                        relativePath: $0.relativePath,
+                        isDirectory: $0.isDirectory
+                    )
+                }
+            } catch {
+                entries = []
+                failureText = error.localizedDescription
+            }
+            return
+        }
+
+        let contents = (try? FileManager.default.contentsOfDirectory(
+            at: directoryURL,
+            includingPropertiesForKeys: [.isDirectoryKey, .isRegularFileKey, .isHiddenKey],
+            options: [.skipsHiddenFiles]
+        )) ?? []
+        entries = contents.compactMap { url in
+            guard
+                let values = try? url.resourceValues(forKeys: [.isDirectoryKey, .isRegularFileKey]),
+                values.isDirectory == true || values.isRegularFile == true
+            else { return nil }
+            return Entry(
+                name: url.lastPathComponent,
+                url: url,
+                relativePath: nil,
+                isDirectory: values.isDirectory == true
+            )
+        }
+        .sorted { lhs, rhs in
             if lhs.isDirectory != rhs.isDirectory { return lhs.isDirectory }
             return lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
         }
     }
 
+    private func createFolder() {
+        guard let directoryRelativePath else { return }
+        do {
+            _ = try store.createFolder(named: newFolderName, inRelativePath: directoryRelativePath)
+            reload()
+        } catch {
+            failureText = error.localizedDescription
+        }
+    }
+
     private func openFile(at url: URL) {
-        let relativePath = store.fileBridge.relativePath(for: url)
-        if let record = try? store.record(forRelativePath: relativePath) {
+        if let relativePath = directoryRelativePath.map({ path in
+            path.isEmpty ? url.lastPathComponent : path + "/" + url.lastPathComponent
+        }), let record = try? store.record(forRelativePath: relativePath) {
             do {
                 try store.recordOpen(record)
             } catch {
@@ -159,17 +268,27 @@ struct DirectoryContentsView: View {
     }
 
     /// Hands a browsed PDF to the toolbox, adopting it into the store if it
-    /// is not already tracked.
+    /// is not already tracked. This records metadata only; granted source
+    /// bytes remain in their original folder.
     private func openPDFTools(for url: URL) {
-        let relativePath = store.fileBridge.relativePath(for: url)
         do {
-            if let record = try store.record(forRelativePath: relativePath) {
-                pdfToolsSource = record
+            let record: DocumentRecord
+            if let relativePath = directoryRelativePath.map({ path in
+                path.isEmpty ? url.lastPathComponent : path + "/" + url.lastPathComponent
+            }), let existing = try store.record(forRelativePath: relativePath) {
+                record = existing
+            } else if !appOwned,
+                      let existing = try store.record(forAbsolutePath: url.standardizedFileURL.path) {
+                record = existing
             } else {
-                pdfToolsSource = try store.adoptFile(at: url)
+                record = try store.adoptFile(
+                    at: url,
+                    absolutePath: appOwned ? nil : url.standardizedFileURL.path
+                )
             }
+            pdfToolsSource = record
         } catch {
-            // A file that cannot be adopted simply gets no toolbox entry.
+            failureText = error.localizedDescription
         }
     }
 }

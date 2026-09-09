@@ -1,128 +1,197 @@
-# Documents (iOS) — Increments 1 & 2
+# Documents for iOS
 
-The app is named **Documents** everywhere — home-screen display name, Xcode
-project, target, module, and scheme.
+Documents is an original SwiftUI document hub for iOS 26. The app, target,
+module, scheme, and home-screen name use **Documents**. The bundle identifier
+remains `com.docdeck.app` so existing device installs keep their app
+container.
 
-An original SwiftUI document-hub app for iOS 26 (Phase 0 foundations, Phase 1
-core, and Phase 2 toolbox of the parent plan in `../analysis/IOS_PLAN.md`).
-All code, assets, and wording are original; nothing is copied from any
-third-party application.
+For the implementation matrix, approved scope, and remaining verification, see
+[`analysis/CURRENT_STATUS.md`](../analysis/CURRENT_STATUS.md). For the screen
+frames and requirement mapping, see [`design/README.md`](../design/README.md).
 
 ## Requirements
 
-- macOS with Xcode 26.x (iOS 26 SDK) and an iOS 26 simulator runtime
-- [XcodeGen](https://github.com/yonaskolb/XcodeGen) on PATH (`brew install xcodegen`)
-- Network access on first generate/build so Xcode can fetch the single
-  third-party dependency, [ZIPFoundation](https://github.com/weichsel/ZIPFoundation) (MIT), via Swift Package Manager
-- Device builds use automatic signing with the team configured in `project.yml`
-  (`DEVELOPMENT_TEAM`); simulator builds work with or without a team
+- macOS with Xcode 26.x and an iOS 26 simulator runtime
+- [XcodeGen](https://github.com/yonaskolb/XcodeGen) on `PATH`
+- Network access for the ZIPFoundation package and the first
+  `NativeArchives` bootstrap
+- Automatic signing for device builds with the team in `project.yml`
 
-## Generate, build, run
+The project uses two Swift Package Manager dependencies:
 
-```bash
-cd ios
+- [ZIPFoundation](https://github.com/weichsel/ZIPFoundation) 0.9.19 for ZIP
+  creation and extraction
+- The local `NativeArchives` package for bounded, read-only, unencrypted
+  7-Zip and RAR extraction on arm64 iOS device and arm64 iOS Simulator
 
-# 1. Generate Documents.xcodeproj from project.yml
+## Bootstrap NativeArchives
+
+`NativeArchives` builds the libarchive and XZ Utils C libraries into an iOS
+device and simulator XCFramework. Bootstrap it from the repository root
+before you run XcodeGen or build the app:
+
+```sh
+cd ios/Packages/NativeArchives
+./Scripts/bootstrap.sh
+cd ../..
+xcodegen generate
+```
+
+The script pins libarchive 3.8.9 and XZ Utils 5.8.3 by SHA-256. It requires
+the Xcode command-line tools and network access for the source archives.
+Generated files in `ios/Packages/NativeArchives/.build/` and
+`ios/Packages/NativeArchives/Artifacts/` are ignored by Git and must not be
+committed.
+
+## Generate, build, and test
+
+Run these commands from `ios/` after the NativeArchives bootstrap:
+
+```sh
+# Generate Documents.xcodeproj from project.yml.
 xcodegen generate
 
-# 2. Build (simulator only)
+# Build for the iOS simulator.
 xcodebuild -project Documents.xcodeproj -scheme Documents \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max' build
 
-# 3. Run the unit tests
-xcodebuild test -project Documents.xcodeproj -scheme Documents \
+# Run the unit tests.
+xcodebuild -project Documents.xcodeproj -scheme Documents \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max' \
-  -only-testing:DocumentsTests
+  -only-testing:DocumentsTests test
+
+# Run the UI tests when the simulator is available.
+xcodebuild -project Documents.xcodeproj -scheme Documents \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro Max' \
+  -only-testing:DocumentsUITests test
 ```
 
-Or open `Documents.xcodeproj` in Xcode, pick the iPhone 17 Pro Max simulator, and hit Run.
-Note: the `.xcodeproj` is generated — edit `project.yml`, then re-run `xcodegen generate`.
+Edit `project.yml` instead of the generated project. Run `xcodegen generate`
+after adding or removing source files or changing project settings.
 
-### Running on a physical device
+## Physical-device validation
 
-1. Build for device: `xcodebuild -project Documents.xcodeproj -scheme Documents -destination 'generic/platform=iOS' build`
-2. Install: `xcrun devicectl device install app --device <coredevice-id> <path>/Documents.app`
-3. First launch only: on the iPhone go to **Settings → General → VPN & Device
-   Management** and trust the developer certificate, then launch the app.
+Build and install a device build with the following commands:
 
-## What's in this increment
-
-### Structure
-
+```sh
+xcodebuild -project Documents.xcodeproj -scheme Documents \
+  -destination 'generic/platform=iOS' build
+xcrun devicectl device install app --device CORE_DEVICE_ID PATH_TO_DOCUMENTS_APP
 ```
+
+The camera capture flow and Files-provider security-scoped folder grants
+require a paired physical device. A paired iPhone is connected, but these
+hardware flows still need manual verification; simulator tests do not establish
+hardware support.
+
+## Source layout
+
+```text
 ios/
-├── project.yml                 # XcodeGen spec (Documents app + DocumentsTests + ZIPFoundation package)
+├── project.yml                     # XcodeGen specification
 ├── Documents/
-│   ├── DocumentsApp.swift        # @main, SwiftData container + store wiring
-│   ├── Home/                   # Tab shell: Recent, Favorites, Tools, Cloud, Browse
-│   ├── Viewers/                # QLPreviewController wrapper + open/share flow
-│   ├── Core/DocumentStore/     # SwiftData model + @MainActor store service
-│   ├── Core/FileBridge/        # copy-into-container import, name dedupe, deletion
-│   ├── Core/PDFTools/          # pure PDF toolbox logic (merge/split/watermark/sign/extract) + print
-│   ├── Core/Scanning/          # VisionKit wrapper, PDF assembler, Vision OCR
-│   ├── Core/Conversion/        # on-device converters + registry (office → Phase 2b)
-│   ├── Core/Archives/          # ZIP compress/extract on ZIPFoundation
-│   ├── Tools/                  # Tools grid, PDF Tools screen + flows, scanner & convert flows, archive sheets
-│   ├── Settings/               # Settings placeholder + Trash management
-│   └── Resources/              # Assets.xcassets (placeholder accent color/icon)
-└── DocumentsTests/               # Store, FileBridge, PDF toolbox, scanning, OCR, archive, conversion tests
+│   ├── DocumentsApp.swift          # SwiftData container and services
+│   ├── Home/                       # Recent, Tools, Manage, and folder views
+│   ├── Components/                 # Shared document actions and rename UI
+│   ├── Viewers/                    # Quick Look and sharing
+│   ├── Core/DocumentStore/         # SwiftData model and store mutations
+│   ├── Core/FileBridge/            # Container files, staging, and folders
+│   ├── Core/DeviceLibrary/         # App and granted-folder indexing
+│   ├── Core/Scanning/              # VisionKit, drafts, OCR, and scan editor
+│   ├── Core/PDFTools/              # PDF operations and password protection
+│   ├── Core/Conversion/            # Local conversion and HTTPS Office client
+│   ├── Core/AI/                    # On-device extraction and model processing
+│   ├── Core/PrivateSafe/           # Encrypted copies and authentication
+│   ├── Core/Archives/              # ZIPFoundation and NativeArchives flows
+│   ├── Tools/                      # Scanner, PDF, conversion, and archive UI
+│   ├── Settings/                   # Settings and Recently deleted
+│   └── Resources/                 # English string catalog and assets
+└── DocumentsTests/                 # Unit and integration tests
 ```
 
-### Feature status vs parent plan phases
+## Implementation status
 
-| Area | Status | Plan phase |
-|---|---|---|
-| Tab shell: Recent · Favorites · Tools · Cloud · Browse | Done | Phase 1 |
-| DocumentStore (SwiftData): import, recents, favorites, trash/restore/delete-forever/empty-trash, generated-file saving | Done | Phases 0–2 |
-| FileBridge: `fileImporter` multi-select import, copy-into-container with ` (n)` dedupe, on-disk deletion on delete-forever | Done | Phase 0 |
-| Viewer: Quick Look (`QLPreviewController`) for PDF/office/text/markdown/HTML/images, `lastOpenedAt` touch on open, ShareLink | Done | Phase 1 |
-| Browse: folder browser over the app container with import toolbar; PDF context menu adopts files into the toolbox | Done | Phases 1–2 |
-| Scanner: Scan Document (multi-page → PDF), Scan ID Card (front+back → 2-page PDF + OCR text with Copy), Test Paper (scan + OCR → .txt) | Done (camera UI needs a device; simulator shows a graceful alert) | Phase 2 |
-| PDF toolbox: merge, split (range / every-N), watermark (tiled diagonal), sign (PencilKit ink, flattened), extract images (JPEG passthrough + PNG fallback), print (AirPrint) | Done | Phase 2 |
-| PDF encrypt | Deferred — disabled row, "Requires conversion service (Phase 2b)" | Phase 2b |
-| Archives: compress files → `Archive_<date>.zip`, extract ZIP into `Documents/Extracted/<name>/`; 7z/RAR report "Format support pending" | Done (ZIPFoundation) | Phase 2 |
-| Converters: text/Markdown/HTML/images → PDF on-device; office sources and office targets report the pending Phase-2b service error | Done (on-device subset) | Phase 2 |
-| Tools grid (17 items): New Document, scanner trio, PDF Tools, conversion quintet, Compress, Extract working; extraction/AI items stay Phase-3 stubs | Done | Phases 1–2 |
-| Settings: version, Empty Trash (confirmation), About | Done | Phase 1 |
-| Cloud tab | Placeholder ("Cloud documents — Phase 3") | Phase 3 |
-| Extraction / AI (summary, translation, smart extraction), cloud docs | Stubs only | Phase 3 |
-| Office editing, App Intents, widgets, extensions | Not started | Phases 4–5 |
+| Area | Status |
+|---|---|
+| Home shell | Three tabs: Recent, Tools, and Manage. Favorites is a row action, Cloud is not a tab, and browsing is under Manage → Sources. |
+| Recent | Search, sort, format filters, selection mode, bulk actions, create menu, and English accessibility copy are implemented. |
+| Manage and folders | Created by me, app Documents, granted-folder read-only browsing, Recently deleted, folder creation, owned-document Move, and destination validation are implemented. The expanded integrated suite passed 361 unit tests; phone and iPad navigation follow-ups passed. |
+| Store and file safety | Permanent deletion stages app-owned bytes and restores them when persistence fails. Startup recovery reconciles interrupted deletion and Move journals before missing-file cleanup. External records remain metadata-only on delete and are never moved. |
+| Scanner | VisionKit capture, durable app-private scan drafts, save choices, and the reorder/rotate/recrop/remove editor are implemented. Actual resume/rename/rotate/relaunch/save UI passed once (`scanner-recovery-ui-tests-r3`); camera verification is device-only. |
+| PDF tools | Merge, split, watermark, sign, image extraction, print, and password-protected copies are implemented. PDF core passed three tests (`PASS3`) and password-protection UI passed once (`PASS1`); the live checkout suite also passed. |
+| Archives | ZIP creation and extraction use ZIPFoundation. Bounded, unencrypted 7-Zip and RAR extraction uses NativeArchives, which bootstraps from a fresh checkout for arm64 iOS device and simulator slices; archive processing is covered by the live checkout suite. |
+| Conversion | Text, Markdown, HTML, and image to PDF conversion runs on device. Office source/target routes use a configurable HTTPS service; the approved Java 21/Maven/LibreOffice implementation is in `office-conversion-service/` and passes 24 Java tests and 51 independent HTTP checks. A self-hosted HTTPS endpoint is required for use outside local verification. |
+| Localization and accessibility | English `Localizable.xcstrings`, plural count helpers, Dynamic Type adjustments, labels, selected-state exposure, and larger action targets are delivered. Phone layout/accessibility passed 6 tests, phone Tools passed 2, iPad navigation passed 2, and iPad accessibility/Tools passed 6. |
+| Private Safe | Manage exposes the approved local encrypted-copy Safe. Face ID/passcode, encrypted storage, preview, and explicit export are implemented; all 21 Safe storage/recovery/session tests pass, while physical-device authentication remains unverified; see [`analysis/PRIVATE_SAFE_PLAN.md`](../analysis/PRIVATE_SAFE_PLAN.md). |
+| AI features | On-device Summary, Translation, Smart Extraction, and reviewed Chart/Formula flows are implemented and audited; 12 AI unit tests and the Smart Extraction review/save UI pass. Summary reflects Apple Intelligence readiness; Translation checks language availability in its flow. See [`analysis/ON_DEVICE_AI_PLAN.md`](../analysis/ON_DEVICE_AI_PLAN.md). |
 
-### Design decisions & known notes
+## Data and platform decisions
 
-- Swift 6 language mode. The store is a `@MainActor @Observable` class (brief allows
-  actor OR @MainActor class); MainActor was chosen because SwiftData's `ModelContext`
-  and all UI callers are main-actor isolated.
-- `DocumentRecord` persists the container-relative path; `kind` is stored as a raw
-  string for migration-friendly schema.
-- Tests run against an in-memory `ModelContainer` plus a temp directory `FileBridge`,
-  so they never touch the host app's real Documents.
-- The Quick Look wrapper intentionally uses QL for every file type in this increment
-  (it natively renders PDF, office, text, and images); specialized renderers arrive
-  in later phases.
-- **Scanner API choice:** the iOS 26 SDK ships no newer `DocumentScannerViewController`;
-  VisionKit's scanner options are `VNDocumentCameraViewController` (page-oriented
-  captures) and `DataScannerViewController` (live AR scanning without page output),
-  so Documents wraps `VNDocumentCameraViewController`.
-- **PDF image extraction:** `CGPDFStream.copyData()` returns decoded bytes, which would
-  destroy JPEGs; Documents instead walks the raw PDF bytes for `DCTDecode` streams and
-  slices `stream…endstream` payloads, trimming to JPEG SOI/EOI markers. PDFs with no
-  embedded JPEGs fall back to rendering each page as PNG (flagged in the result).
-- **HTML → PDF** runs on the main actor because `UIMarkupTextPrintFormatter` /
-  `UIPrintPageRenderer` are main-actor types.
-- **Targeted Swift 6 concurrency workarounds:**
-  - `DocumentScannerView.Coordinator` is `@MainActor` and conforms
-    `@preconcurrency` to `VNDocumentCameraViewControllerDelegate`, because the
-    Objective-C protocol is imported without isolation even though VisionKit
-    delivers its callbacks on the main thread.
-  - `DocumentConverter.convert(_:to:)` is `@MainActor`: SwiftData's
-    `DocumentRecord` is not Sendable, and the HTML converter needs the main
-    actor anyway.
-  - OCR takes `Data` (Sendable) rather than `UIImage` so recognition can hop
-    off the main actor; a `@MainActor` convenience wraps `UIImage` callers.
-- **Deferred to Phase 2b:** PDF password encryption (PDFKit cannot write
-  encrypted PDFs; no hand-rolled crypto) and office-format conversion in either
-  direction (needs the server conversion pipeline). 7z/RAR archives wait for
-  libarchive.
-- Placeholder app icon: the AppIcon set is empty by design; generate real branding
-  before any distribution.
+- `DocumentRecord` stores app-owned files by container-relative path. External
+  records store an absolute path and keep their source bytes in place.
+- App-owned deletion and Move use hidden app-private staging and journals. The
+  device-library enumerator excludes those locations and defers adoption when
+  journal reconciliation cannot be inspected safely.
+- Unfinished scan bytes live under Application Support, outside the indexed
+  Documents tree. Invalid drafts remain available for explicit recovery or
+  discard.
+- The store is a `@MainActor @Observable` service because SwiftData contexts
+  and UI mutations are main-actor isolated.
+- The English string catalog is the only localization target in this release.
+  User-provided filenames remain literal values and are not catalog keys.
+
+## Latest expansion verification
+
+The integrated unit suite passes **361 tests** (`approved-final-unit-r1`).
+All 16 phone UI cases have passing evidence across the full run and its
+corrected follow-up; the full run itself had one large-type Manage test
+failure, which passed after its scrolling correction. Expanded iPad UI passed
+six tests, followed by three final Safe/Manage checks. Static analysis and the
+unsigned iOS Release build pass (`approved-final-analyze-r1` and
+`approved-final-release-r1`). The built app preserves `com.docdeck.app` and
+supports iPhone and iPad.
+
+These checks include the Safe and AI audit corrections and the Office client.
+The separate Office service passes 24 Java tests and 51 HTTP checks.
+Its detailed evidence and current hardware limits are recorded in [`analysis/CURRENT_STATUS.md`](../analysis/CURRENT_STATUS.md).
+Logs and `.xcresult` bundles are under
+`/private/tmp/documents-app-completion/` on the verification host.
+
+## Verification baseline before the approved feature expansion
+
+The combined live checkout run passed 309 unit tests and 12 UI tests. The
+final unit run passed 310 tests. From `ios/`:
+
+```sh
+xcodebuild -project Documents.xcodeproj -scheme Documents \
+  -destination 'platform=iOS Simulator,id=6F121CEB-B2B4-47DD-99B5-C301EAD4A67F' \
+  -derivedDataPath /private/tmp/documents-app-completion/live-deriveddata \
+  -resultBundlePath /private/tmp/documents-app-completion/live-all-tests-r2.xcresult test
+```
+
+The command returned `** TEST SUCCEEDED **`. Follow-up checks passed for phone
+layout/accessibility and Tools (`phone-final-layout-tests`, PASS6), phone Tools
+(`phone-tools-final-tests`, PASS2), iPad navigation
+(`ipad-navigation-tests-r3`, PASS2), and iPad accessibility/Tools
+(`ipad-accessibility-tools-tests-r4`, PASS6). Focused archive/deletion/Move/
+startup coverage passed 64 tests, scanner recovery passed once, gallery passed
+once, PDF core passed three tests, password UI passed once, and the earlier
+English accessibility audit passed four tests.
+
+The final unsigned release build and analyzer also passed. The release command
+was `xcodebuild -project Documents.xcodeproj -scheme Documents -destination
+'generic/platform=iOS' -configuration Release -derivedDataPath
+/private/tmp/documents-app-completion/live-deriveddata
+CODE_SIGNING_ALLOWED=NO build`, producing `** BUILD SUCCEEDED **`; the analyzer
+produced `** ANALYZE SUCCEEDED **`. Result logs are
+`live-release-build.log` and `live-analyze-final.log`. Compiler output still
+includes XCTest actor-isolation and deprecated-API warnings with no known
+functional blocker in tested paths. These simulator and unsigned-build results
+precede the approved Safe, AI, and Office expansion; see the current status file
+for that wave’s verification.
+
+A paired iPhone is now connected; hardware checks remain outstanding. Camera capture, Files-provider grants, and
+an archive Files-provider round-trip therefore require later physical-device
+validation. No Archive UI test was added because app-private source/ZIP files
+are not reliably selectable through the simulator system provider; processing
+is covered by real ZIP, 7-Zip, and RAR fixtures.

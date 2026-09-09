@@ -1,6 +1,8 @@
 import SwiftUI
 
-/// Placeholder destination for tools that land in later phases.
+/// Destination retained for deferred tools. The Tools grid normally disables
+/// unavailable entries, but this screen remains useful for deep links and
+/// makes the current capability boundary explicit.
 struct ToolStubView: View {
     let tool: ToolItem
 
@@ -11,10 +13,15 @@ struct ToolStubView: View {
                 .foregroundStyle(.tint)
             Text(tool.title)
                 .font(.title2.bold())
-            Text("Coming in Phase \(tool.stubPhase ?? 0)")
+            Text(tool.capability.statusLabel)
                 .font(.headline)
                 .foregroundStyle(.secondary)
-            Text(phaseDescription)
+            if let reasonTitle = tool.capability.reasonTitle {
+                Text(reasonTitle)
+                    .font(.subheadline.weight(.semibold))
+                    .multilineTextAlignment(.center)
+            }
+            Text(tool.capability.reason ?? "This tool is available with the current app services.")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -23,16 +30,5 @@ struct ToolStubView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .navigationTitle(tool.title)
         .navigationBarTitleDisplayMode(.inline)
-    }
-
-    private var phaseDescription: String {
-        switch tool.stubPhase {
-        case 2:
-            "Part of the Phase 2 toolbox: scanning, format conversion, and PDF tools."
-        case 3:
-            "Part of Phase 3: on-device AI features such as extraction, summary, and translation."
-        default:
-            "Planned for a future phase."
-        }
     }
 }

@@ -25,11 +25,11 @@ enum DocumentKind: String, Codable, CaseIterable, Sendable {
             self = .ofd
         case "epub":
             self = .epub
-        case "doc", "docx", "dot", "dotx", "rtf", "pages":
+        case "doc", "docx", "dot", "dotx", "rtf", "pages", "odt":
             self = .word
-        case "xls", "xlsx", "csv", "numbers":
+        case "xls", "xlsx", "csv", "numbers", "ods":
             self = .excel
-        case "ppt", "pptx", "pps", "ppsx", "key":
+        case "ppt", "pptx", "pps", "ppsx", "key", "odp":
             self = .powerpoint
         case "txt", "log", "text":
             self = .text

@@ -16,6 +16,7 @@ enum PDFToolFlow: String, Identifiable, CaseIterable {
     case sign
     case extractImages
     case print
+    case encrypt
 
     var id: String { rawValue }
 
@@ -27,6 +28,7 @@ enum PDFToolFlow: String, Identifiable, CaseIterable {
         case .sign: "Sign"
         case .extractImages: "Extract Images"
         case .print: "Print"
+        case .encrypt: "Protect PDF"
         }
     }
 
@@ -38,6 +40,7 @@ enum PDFToolFlow: String, Identifiable, CaseIterable {
         case .sign: "Draw a signature and stamp it onto a page"
         case .extractImages: "Pull embedded images out of a PDF"
         case .print: "Send a PDF to AirPrint"
+        case .encrypt: "Create a password-protected copy"
         }
     }
 
@@ -49,6 +52,7 @@ enum PDFToolFlow: String, Identifiable, CaseIterable {
         case .sign: "signature"
         case .extractImages: "photo.on.rectangle"
         case .print: "printer"
+        case .encrypt: "lock"
         }
     }
 }
@@ -95,13 +99,6 @@ struct PDFToolsView: View {
                         }
                     }
                 }
-                VStack(alignment: .leading, spacing: 2) {
-                    Label("Encrypt", systemImage: "lock")
-                    Text("Requires conversion service (Phase 2b).")
-                        .font(.caption)
-                }
-                .foregroundStyle(.secondary)
-                .accessibilityElement(children: .combine)
             }
         }
         .navigationTitle("PDF Tools")
@@ -152,6 +149,8 @@ struct PDFToolsView: View {
             ExtractImagesFlowView(source: initialSource, onDone: finish)
         case .print:
             PrintFlowView(source: initialSource, onDone: finish)
+        case .encrypt:
+            PDFPasswordProtectionFlowView(source: initialSource, onDone: finish)
         }
     }
 

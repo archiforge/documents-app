@@ -1,3 +1,4 @@
+import PhotosUI
 import SwiftUI
 import os
 
@@ -14,13 +15,14 @@ struct OCRResult: Identifiable {
 /// 1. the Tools tab opens the camera directly; this flow then takes over
 ///    with the captured pages (seeded via `initialPages`), or opens the
 ///    camera itself for later re-entry (retake, scan more, ID-card back),
-/// 2. a save chooser offers Save as PDF / Save as Image (test papers add
-///    Save as Text); the choice stores the scan and shows the saved screen,
+/// 2. a save chooser offers Save as PDF / Save as Image (test papers and
+///    ID-card scans add Save as Text); the choice stores the scan and shows
+///    the saved screen,
 /// 3. cancelling the chooser keeps the captured pages in the preview
 ///    (retake / scan-more / continue → confirm screen with
 ///    preview · share · delete · rename · more),
 /// 4. "more" offers Save as PDF / Save as Image / Save as Long Image
-///    (plus Save as Text for test papers),
+///    (plus Save as Text and ID-card recognition where applicable),
 /// 5. a success screen confirms what was saved.
 ///
 /// VisionKit hands the scan to the delegate and expects the app to dismiss
@@ -42,29 +44,44 @@ struct ScannerFlowView: View {
 
     @State private var session = ScanSession()
     @State private var showScanner = false
-    @State private var pages: [UIImage] = []
-    @State private var frontPages: [UIImage] = []
+    @State private var pages: [ScanPageBuffer] = []
+    @State private var frontPages: [ScanPageBuffer] = []
     @State private var stage = Stage.camera
     @State private var savedDocuments: [PresentedDocument] = []
     @State private var busy = false
     @State private var errorMessage = ""
     @State private var showError = false
-    @State private var showCameraUnavailable = false
     @State private var ocrResult: OCRResult?
     @State private var showMoreSheet = false
-    @State private var showRename = false
-    @State private var renameText = ""
+    @State private var renameRequest: RenameRequest?
     @State private var renamedBase: String?
     @State private var previewFile: PreviewFile?
     @State private var lastPreviewURL: URL?
     @State private var artifacts = TempArtifactTracker()
     /// Set when a capture delivered pages; consumed on scanner close.
     @State private var pendingSaveChoice = false
-    /// Set by any VisionKit callback; lets the close handler tell a
-    /// deliberate cancel from a scanner that vanished without delivering.
-    @State private var scanDelivered = false
+    /// Explicitly records the current camera pass before VisionKit dismisses
+    /// its controller. This prevents an error or dropped callback from being
+    /// mistaken for a successful ID-card front capture.
+    @State private var cameraOutcome: ScanCameraOutcome?
     @State private var showNoPages = false
     @State private var showSaveChooser = false
+    @State private var draftStore = ScanDraftStore.shared
+    @State private var draftID = UUID()
+    @State private var draftCreatedAt = Date()
+    @State private var draftRevision = 0
+    @State private var isFinalizingDraft = false
+    @State private var activeTask: Task<Void, Never>?
+    @State private var draftWriteTasks: [Task<Void, Never>] = []
+    @State private var showEditor = false
+    @State private var showPhotoPicker = false
+    @State private var photoItems: [PhotosPickerItem] = []
+    @State private var recoverySnapshot: ScanDraftSnapshot?
+    @State private var showDraftRecovery = false
+    @State private var draftLoadFailed = false
+    @State private var draftGeneration: UUID?
+    @State private var didInitialize = false
+    @State private var activeMode: ScanMode?
 
     let onResult: (PresentedDocument) -> Void
 
@@ -75,14 +92,19 @@ struct ScannerFlowView: View {
         case saved([String])
     }
 
+    private var currentMode: ScanMode {
+        activeMode ?? mode
+    }
+
     var body: some View {
         NavigationStack {
             content
-                .navigationTitle(mode.title)
+                .navigationTitle(currentMode.title)
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
                         Button("Cancel") { dismiss() }
+                            .accessibilityIdentifier("scanner-flow-cancel")
                     }
                 }
         }
@@ -96,11 +118,30 @@ struct ScannerFlowView: View {
         ) {
             Button("Save as PDF") { saveAsPDF() }
             Button("Save as Image") { saveAsImages() }
-            if mode == .testPaper {
+            if currentMode == .testPaper || currentMode == .idCard {
                 Button("Save as Text") { saveAsText() }
             }
         } message: {
             Text(pages.count == 1 ? "Store the scanned page." : "Store the \(pages.count) scanned pages.")
+        }
+        .confirmationDialog(
+            "Unfinished Scan",
+            isPresented: $showDraftRecovery,
+            titleVisibility: .visible
+        ) {
+            if recoverySnapshot != nil {
+                Button("Resume Draft") { resumeDraft() }
+            }
+            Button(recoverySnapshot == nil ? "Discard Draft" : "Start New Scan", role: .destructive) {
+                discardDraftAndContinue()
+            }
+            Button("Leave Draft", role: .cancel) { dismiss() }
+        } message: {
+            Text(
+                draftLoadFailed
+                    ? "The unfinished scan could not be restored. It is still on disk; discard it to start a new scan."
+                    : "An unfinished scan is available. Resume it or start a new scan."
+            )
         }
         .sheet(item: $ocrResult) { result in
             OCRResultSheet(result: result) { document in
@@ -113,6 +154,17 @@ struct ScannerFlowView: View {
             moreSheet
                 .presentationDetents([.medium])
         }
+        .sheet(isPresented: $showEditor) {
+            ScanEditorView(pages: $pages) {
+                persistDraft()
+            }
+        }
+        .photosPicker(
+            isPresented: $showPhotoPicker,
+            selection: $photoItems,
+            maxSelectionCount: 20,
+            matching: .images
+        )
         .fullScreenCover(item: $previewFile, onDismiss: {
             if let url = lastPreviewURL {
                 artifacts.remove(url)
@@ -121,18 +173,11 @@ struct ScannerFlowView: View {
         }) { file in
             DocumentViewerScreen(title: file.url.lastPathComponent, url: file.url)
         }
-        .alert("Rename scan", isPresented: $showRename) {
-            TextField("Name", text: $renameText)
-            Button("Save") {
-                let trimmed = renameText.trimmingCharacters(in: .whitespacesAndNewlines)
-                renamedBase = trimmed.isEmpty ? nil : trimmed
+        .sheet(item: $renameRequest) { request in
+            RenameSheet(initialName: request.initialName) { newName in
+                renamedBase = newName
+                persistDraft()
             }
-            Button("Cancel", role: .cancel) {}
-        }
-        .alert("Camera unavailable", isPresented: $showCameraUnavailable) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text("The document scanner needs a physical camera. Run Documents on an iPhone or iPad to scan.")
         }
         .alert("Scan Not Saved", isPresented: $showNoPages) {
             Button("Try Again") { openCamera() }
@@ -145,31 +190,28 @@ struct ScannerFlowView: View {
         } message: {
             Text(errorMessage)
         }
+        .onChange(of: photoItems) { _, newItems in
+            guard !newItems.isEmpty else { return }
+            importPhotos(newItems)
+        }
         .onAppear {
+            guard !didInitialize else { return }
+            didInitialize = true
             session.onPages = { handle(pages: $0) }
             session.onCancel = { handleCancel() }
             session.onError = { error in
+                cameraOutcome = .failed
                 showScanner = false
                 fail(error.localizedDescription)
             }
-            if !initialPages.isEmpty || !initialFrontPages.isEmpty {
-                pages = initialPages
-                frontPages = initialFrontPages
-                if pages.isEmpty {
-                    // ID card: the front was captured by the Tools tab's
-                    // direct pass; this flow reopens the camera for the back.
-                    openCamera()
-                } else {
-                    stage = .preview
-                    pendingSaveChoice = true
-                    scanTrace("seeded with \(pages.count) captured page(s); offering save choice")
-                    showSaveChooser = true
-                }
-            } else {
-                openCamera()
-            }
+            initializeFlow()
         }
         .onDisappear {
+            // Draft writes intentionally continue after a normal flow
+            // disappearance so the latest captured/edit snapshot remains
+            // recoverable. Explicit discard and save paths await these tasks
+            // before invalidating their generation.
+            activeTask?.cancel()
             // Backstop: whatever preview/share artifacts are still tracked
             // go away when the whole flow leaves.
             artifacts.removeAll()
@@ -194,7 +236,26 @@ struct ScannerFlowView: View {
 
     /// The scanner cover opens on appear; this is only its backdrop.
     private var cameraBackdrop: some View {
-        Color.black.ignoresSafeArea()
+        ZStack {
+            Color.black.ignoresSafeArea()
+            VStack(spacing: 16) {
+                Image(systemName: "doc.viewfinder")
+                    .font(.system(size: 44))
+                    .foregroundStyle(.white.opacity(0.8))
+                Text("Scan or import a page")
+                    .font(.headline)
+                    .foregroundStyle(.white)
+                Button {
+                    showPhotoPicker = true
+                } label: {
+                    Label("Import from Photos", systemImage: "photo.on.rectangle")
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 10)
+                }
+                .buttonStyle(.borderedProminent)
+                .accessibilityIdentifier("scanner-gallery-import")
+            }
+        }
     }
 
     /// Post-capture preview: the latest page large, a thumbnail strip,
@@ -203,9 +264,7 @@ struct ScannerFlowView: View {
         ZStack {
             Color.black.ignoresSafeArea()
             if let latest = pages.last {
-                Image(uiImage: latest)
-                    .resizable()
-                    .scaledToFit()
+                ScanPagePreview(page: latest, maxDimension: 1_200)
             }
             VStack {
                 HStack {
@@ -218,6 +277,15 @@ struct ScannerFlowView: View {
                             .background(.ultraThinMaterial, in: Circle())
                     }
                     Spacer()
+                    Button {
+                        showPhotoPicker = true
+                    } label: {
+                        Image(systemName: "photo.on.rectangle")
+                            .font(.title3.weight(.semibold))
+                            .padding(10)
+                            .background(.ultraThinMaterial, in: Circle())
+                    }
+                    .accessibilityLabel("Import photos")
                     Text("\(pages.count)")
                         .font(.subheadline.weight(.bold))
                         .padding(.horizontal, 12)
@@ -231,9 +299,7 @@ struct ScannerFlowView: View {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 8) {
                             ForEach(pages.indices, id: \.self) { index in
-                                Image(uiImage: pages[index])
-                                    .resizable()
-                                    .scaledToFill()
+                                ScanPagePreview(page: pages[index], maxDimension: 240)
                                     .frame(width: 52, height: 68)
                                     .clipShape(RoundedRectangle(cornerRadius: 6))
                             }
@@ -245,7 +311,7 @@ struct ScannerFlowView: View {
                         Button {
                             pages = []
                             frontPages = []
-                            openCamera()
+                            discardDraftKeepingFlow()
                         } label: {
                             Image(systemName: "arrow.counterclockwise")
                                 .font(.title2)
@@ -262,6 +328,7 @@ struct ScannerFlowView: View {
                         // Continue to the confirm screen.
                         Button {
                             stage = .confirm
+                            persistDraft()
                         } label: {
                             Image(systemName: "arrow.right")
                                 .font(.title2.weight(.semibold))
@@ -296,32 +363,30 @@ struct ScannerFlowView: View {
     }
 
     private func pageThumb(_ index: Int) -> some View {
-        Image(uiImage: pages[index])
-            .resizable()
-            .scaledToFill()
-            .frame(width: 100, height: 136)
-            .clipShape(RoundedRectangle(cornerRadius: 10))
-            .overlay(alignment: .topTrailing) {
-                Button {
-                    removePage(at: index)
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.title3)
-                        .foregroundStyle(.white, .black.opacity(0.6))
-                }
-                .padding(4)
+        ZStack(alignment: .topTrailing) {
+            ScanPagePreview(page: pages[index], maxDimension: 320)
+            Button {
+                removePage(at: index)
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.title3)
+                    .foregroundStyle(.white, .black.opacity(0.6))
             }
-            .accessibilityLabel("Page \(index + 1)")
+            .padding(4)
+        }
+        .frame(width: 100, height: 136)
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .accessibilityLabel("Page \(index + 1)")
     }
 
     private var bottomBar: some View {
         HStack {
+            ToolBarButton(label: "Add", systemImage: "plus") { openCamera() }
+            ToolBarButton(label: "Edit", systemImage: "slider.horizontal.3") { showEditor = true }
             ToolBarButton(label: "Preview", systemImage: "doc.richtext") { previewPDF() }
             ToolBarButton(label: "Share", systemImage: "square.and.arrow.up") { sharePDF() }
-            ToolBarButton(label: "Delete", systemImage: "trash", role: .destructive) { discardScan() }
             ToolBarButton(label: "Rename", systemImage: "pencil") {
-                renameText = renamedBase ?? defaultBaseName
-                showRename = true
+                renameRequest = RenameRequest(initialName: renamedBase ?? defaultBaseName)
             }
             ToolBarButton(label: "More", systemImage: "ellipsis") { showMoreSheet = true }
         }
@@ -350,13 +415,28 @@ struct ScannerFlowView: View {
                 } label: {
                     Label("Save as Long Image", systemImage: "rectangle.portrait.bottomthird.inset.filled")
                 }
-                if mode == .testPaper {
+                if currentMode == .testPaper || currentMode == .idCard {
                     Button {
                         showMoreSheet = false
                         saveAsText()
                     } label: {
                         Label("Save as Text", systemImage: "doc.plaintext")
                     }
+                }
+                if currentMode == .idCard {
+                    Button {
+                        showMoreSheet = false
+                        recognizeIDCardText()
+                    } label: {
+                        Label("Recognize Text", systemImage: "text.viewfinder")
+                    }
+                }
+                Divider()
+                Button(role: .destructive) {
+                    showMoreSheet = false
+                    discardScan()
+                } label: {
+                    Label("Discard Scan", systemImage: "trash")
                 }
             }
             .navigationTitle("Save Scan")
@@ -369,10 +449,18 @@ struct ScannerFlowView: View {
         }
     }
 
+    private struct RenameRequest: Identifiable {
+        let id = UUID()
+        let initialName: String
+    }
+
     private func savedView(names: [String]) -> some View {
         VStack(spacing: 20) {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 56))
+                .foregroundStyle(.green)
+            Label("Saved to Documents", systemImage: "checkmark.circle.fill")
+                .font(.subheadline.weight(.medium))
                 .foregroundStyle(.green)
             Text("Saved")
                 .font(.title2.bold())
@@ -402,12 +490,274 @@ struct ScannerFlowView: View {
 
     // MARK: - Flow
 
+    private func initializeFlow() {
+        activeMode = mode
+        pages = makePageBuffers(from: initialPages)
+        frontPages = makePageBuffers(from: initialFrontPages)
+        let task = Task { @MainActor in
+            do {
+                let generation = await draftStore.currentGeneration()
+                try Task.checkCancellation()
+                draftGeneration = generation
+                if let snapshot = try await draftStore.load() {
+                    try Task.checkCancellation()
+                    recoverySnapshot = snapshot
+                    draftID = snapshot.draft.id
+                    draftCreatedAt = snapshot.draft.createdAt
+                    showDraftRecovery = true
+                    return
+                }
+            } catch {
+                if error is CancellationError { return }
+                // Keep the draft on disk and let the user decide whether to
+                // discard it. A malformed draft must never silently vanish.
+                fail(error.localizedDescription)
+                draftLoadFailed = true
+                showDraftRecovery = true
+                return
+            }
+            continueWithIncomingPages()
+        }
+        activeTask = task
+    }
+
+    private func continueWithIncomingPages() {
+        if !pages.isEmpty {
+            stage = .preview
+            pendingSaveChoice = true
+            persistDraft()
+            scanTrace("seeded with \(pages.count) captured page(s); offering save choice")
+            showSaveChooser = true
+        } else if !frontPages.isEmpty {
+            // ID card: the front was captured by the Tools tab's direct pass;
+            // reopen the camera for the back.
+            persistDraft()
+            openCamera()
+        } else {
+            openCamera()
+        }
+    }
+
+    private func makePageBuffers(from images: [UIImage]) -> [ScanPageBuffer] {
+        images.compactMap { image in
+            guard let data = image.jpegData(compressionQuality: 0.9) else {
+                return nil
+            }
+            return ScanPageBuffer(data: data)
+        }
+    }
+
+    private func makeDraft() -> (draft: ScanDraft, data: [UUID: Data])? {
+        let allPages = pages + frontPages
+        guard !allPages.isEmpty else { return nil }
+        let pageManifests = pages.map { ScanDraftPage(id: $0.id, fileName: "page-\($0.id.uuidString).jpg", edit: $0.edit) }
+        let frontManifests = frontPages.map { ScanDraftPage(id: $0.id, fileName: "page-\($0.id.uuidString).jpg", edit: $0.edit) }
+        let now = Date()
+        let draft = ScanDraft(
+            id: draftID,
+            mode: currentMode,
+            pages: pageManifests,
+            frontPages: frontManifests,
+            renamedBase: renamedBase,
+            revision: draftRevision,
+            createdAt: draftCreatedAt,
+            updatedAt: now
+        )
+        var data: [UUID: Data] = [:]
+        for page in allPages {
+            data[page.id] = page.data
+        }
+        return (draft, data)
+    }
+
+    /// Captures a complete Sendable snapshot before handing disk work to the
+    /// persistence actor. A failed write leaves both the in-memory pages and
+    /// the previous on-disk manifest intact.
+    private func persistDraft() {
+        guard !isFinalizingDraft else { return }
+        guard let current = makeDraft() else {
+            // Removing the final page is an explicit user discard of the
+            // unfinished bundle; clean it up only after that action.
+            isFinalizingDraft = true
+            let task = Task { @MainActor in
+                do {
+                    await awaitDraftWrites()
+                    try Task.checkCancellation()
+                    try await draftStore.discard()
+                    await resetDraftSession(resetMode: true)
+                    isFinalizingDraft = false
+                    openCamera()
+                } catch is CancellationError {
+                    isFinalizingDraft = false
+                    return
+                } catch {
+                    isFinalizingDraft = false
+                    fail(error.localizedDescription)
+                }
+            }
+            activeTask = task
+            return
+        }
+        guard let generation = draftGeneration else {
+            let task = Task { @MainActor in
+                do {
+                    let generation = await draftStore.currentGeneration()
+                    try Task.checkCancellation()
+                    draftGeneration = generation
+                    persistDraft()
+                } catch is CancellationError {
+                    return
+                } catch {
+                    fail(error.localizedDescription)
+                }
+            }
+            activeTask = task
+            return
+        }
+        draftRevision += 1
+        var nextDraft = current.draft
+        nextDraft.revision = draftRevision
+        let draft = nextDraft
+        let data = current.data
+        let task = Task { @MainActor in
+            do {
+                try Task.checkCancellation()
+                try await draftStore.save(draft, pageData: data, generation: generation)
+                try Task.checkCancellation()
+            } catch is CancellationError {
+                return
+            } catch {
+                fail(error.localizedDescription)
+            }
+        }
+        draftWriteTasks.append(task)
+    }
+
+    private func resumeDraft() {
+        guard let snapshot = recoverySnapshot else {
+            return
+        }
+        let restoredPages = snapshot.pages
+        let restoredFrontPages = snapshot.frontPages
+        activeMode = ScanEntryRouting.modeForResume(
+            requested: mode,
+            draftMode: snapshot.draft.mode
+        )
+        draftID = snapshot.draft.id
+        pages = restoredPages + pages
+        frontPages = restoredFrontPages + frontPages
+        renamedBase = snapshot.draft.renamedBase
+        draftRevision = snapshot.draft.revision
+        recoverySnapshot = nil
+        draftLoadFailed = false
+        stage = pages.isEmpty ? .camera : .preview
+        persistDraft()
+        if pages.isEmpty {
+            openCamera()
+        }
+    }
+
+    private func discardDraftAndContinue() {
+        activeTask?.cancel()
+        isFinalizingDraft = true
+        let task = Task { @MainActor in
+            do {
+                await awaitDraftWrites()
+                try Task.checkCancellation()
+                try await draftStore.discard()
+                await resetDraftSession(resetMode: true)
+                recoverySnapshot = nil
+                draftLoadFailed = false
+                isFinalizingDraft = false
+                continueWithIncomingPages()
+            } catch is CancellationError {
+                isFinalizingDraft = false
+                return
+            } catch {
+                isFinalizingDraft = false
+                fail(error.localizedDescription)
+            }
+        }
+        activeTask = task
+    }
+
+    private func discardDraftKeepingFlow() {
+        activeTask?.cancel()
+        isFinalizingDraft = true
+        let task = Task { @MainActor in
+            do {
+                await awaitDraftWrites()
+                try Task.checkCancellation()
+                try await draftStore.discard()
+                await resetDraftSession(resetMode: true)
+                isFinalizingDraft = false
+                openCamera()
+            } catch is CancellationError {
+                isFinalizingDraft = false
+                return
+            } catch {
+                isFinalizingDraft = false
+                fail(error.localizedDescription)
+            }
+        }
+        activeTask = task
+    }
+
+    private func importPhotos(_ selection: [PhotosPickerItem]) {
+        guard !isFinalizingDraft else { return }
+        activeTask?.cancel()
+        busy = true
+        let task = Task { @MainActor in
+            defer { busy = false }
+            var imported: [ScanPageBuffer] = []
+            var failedCount = 0
+            for item in selection {
+                do {
+                    try Task.checkCancellation()
+                    guard let data = try await item.loadTransferable(type: Data.self) else {
+                        failedCount += 1
+                        continue
+                    }
+                    let validImage = try await runCancellableDetached(priority: .utility) {
+                        UIImage(data: data) != nil
+                    }
+                    guard validImage else {
+                        failedCount += 1
+                        continue
+                    }
+                    try Task.checkCancellation()
+                    imported.append(ScanPageBuffer(data: data))
+                } catch is CancellationError {
+                    return
+                } catch {
+                    failedCount += 1
+                }
+            }
+            guard !Task.isCancelled else { return }
+            if !frontPages.isEmpty {
+                pages = frontPages + imported
+                frontPages = []
+            } else {
+                pages.append(contentsOf: imported)
+            }
+            photoItems = []
+            if !pages.isEmpty {
+                stage = .preview
+                persistDraft()
+            }
+            if failedCount > 0 {
+                fail("\(failedCount) selected photo\(failedCount == 1 ? " was" : "s were") unavailable. The imported pages were kept.")
+            }
+        }
+        activeTask = task
+    }
+
     private func openCamera() {
+        guard !isFinalizingDraft else { return }
         stage = .camera
-        scanDelivered = false
+        cameraOutcome = nil
         pendingSaveChoice = false
         guard ScanningService.isCameraAvailable else {
-            showCameraUnavailable = true
             return
         }
         scanTrace("presenting scanner")
@@ -415,7 +765,7 @@ struct ScannerFlowView: View {
     }
 
     private var defaultBaseName: String {
-        ScanningService.baseName(for: mode, renamed: renamedBase)
+        ScanningService.baseName(for: currentMode, renamed: renamedBase)
     }
 
     private func fileName(for fileExtension: String) -> String {
@@ -429,41 +779,40 @@ struct ScannerFlowView: View {
         // close then reaches `scannerClosed`, the only safe point for the
         // chooser / camera reopen / retry handoff.
         showScanner = false
+        guard !isFinalizingDraft else { return }
         guard !scanned.isEmpty else {
+            cameraOutcome = .emptyDelivery
             scanTrace("didScan delivered no pages; recovering on scanner close")
             return
         }
-        scanDelivered = true
+        let captured = makePageBuffers(from: scanned)
+        guard !captured.isEmpty else {
+            cameraOutcome = .failed
+            fail(ScanSaveError.imageEncodingFailed.localizedDescription)
+            return
+        }
+        cameraOutcome = .pages
         // ID cards capture front, then the back side right away.
-        if mode == .idCard, frontPages.isEmpty, pages.isEmpty {
-            frontPages = scanned
+        if currentMode == .idCard, frontPages.isEmpty, pages.isEmpty {
+            frontPages = captured
+            persistDraft()
             scanTrace("id-card front captured; reopening camera for back on scanner close")
             return
         }
-        pages += frontPages + scanned
+        pages += frontPages + captured
         frontPages = []
         stage = .preview
         pendingSaveChoice = true
+        persistDraft()
         scanTrace("captured \(pages.count) page(s) total; offering save choice")
     }
 
     @MainActor
     private func handleCancel() {
-        scanDelivered = true
+        cameraOutcome = .cancelled
         scanTrace("didCancel received")
         showScanner = false
-        if !frontPages.isEmpty {
-            // Back-side capture skipped: keep the front only.
-            pages = frontPages
-            frontPages = []
-            stage = .preview
-        } else if pages.isEmpty {
-            // Deliberate cancel with nothing captured: `scannerClosed` ends
-            // the flow once the cover is fully gone.
-            stage = .camera
-        } else {
-            stage = .preview
-        }
+        guard !isFinalizingDraft else { return }
     }
 
     /// Runs when the scanner cover is fully gone — the only safe point to
@@ -471,47 +820,81 @@ struct ScannerFlowView: View {
     @MainActor
     private func scannerClosed() {
         session.detach()
-        if !frontPages.isEmpty {
-            scanTrace("scanner closed: reopening camera for ID-card back side")
-            openCamera() // ID-card back side still pending.
+        guard !isFinalizingDraft else {
+            cameraOutcome = nil
             return
         }
-        if !pages.isEmpty {
-            if stage == .camera {
-                stage = .preview // recovered from a dropped re-capture
+        let action = ScanFlowCameraRouting.closeAction(
+            outcome: cameraOutcome,
+            frontPageCount: frontPages.count,
+            pageCount: pages.count
+        )
+        let outcome = cameraOutcome
+        cameraOutcome = nil
+
+        switch action {
+        case .openBackCamera:
+            scanTrace("scanner closed after front delivery; reopening camera for ID-card back side")
+            openCamera()
+        case .showPreview:
+            if !frontPages.isEmpty {
+                // A cancelled, failed, or dropped back pass keeps the front
+                // as an editable page and never presents another camera.
+                pages = frontPages + pages
+                frontPages = []
+                persistDraft()
             }
+            guard !pages.isEmpty else { return }
+            stage = .preview
             if pendingSaveChoice {
                 pendingSaveChoice = false
                 scanTrace("scanner closed: offering save choice")
                 showSaveChooser = true
             }
-            return
-        }
-        if scanDelivered {
-            // Deliberate cancel with nothing captured.
-            scanTrace("scanner closed: deliberate cancel, ending flow")
-            dismiss()
-        } else {
-            // The scanner closed without delivering any callback: offer a
-            // retry instead of stranding the flow on the black backdrop.
-            scanTrace("scanner closed WITHOUT any callback (pages: \(pages.count), front: \(frontPages.count))")
+        case .showNoPages:
+            scanTrace("scanner closed without usable pages (outcome: \(String(describing: outcome)))")
             showNoPages = true
+        case .dismiss:
+            scanTrace("scanner closed after deliberate cancel, ending flow")
+            dismiss()
+        case .stayForError:
+            // `fail` already presents the specific VisionKit error. Keep the
+            // camera stage available for the gallery button without showing
+            // the generic no-pages retry alert as a second presentation.
+            stage = .camera
         }
     }
 
     private func removePage(at index: Int) {
         guard pages.indices.contains(index) else { return }
         _ = withAnimation { pages.remove(at: index) }
-        if pages.isEmpty {
-            openCamera()
-        }
+        persistDraft()
     }
 
     private func discardScan() {
-        pages = []
-        frontPages = []
-        artifacts.removeAll()
-        dismiss()
+        activeTask?.cancel()
+        isFinalizingDraft = true
+        busy = true
+        let task = Task { @MainActor in
+            defer { busy = false }
+            do {
+                await awaitDraftWrites()
+                try Task.checkCancellation()
+                try await draftStore.discard()
+                await resetDraftSession()
+                pages = []
+                frontPages = []
+                artifacts.removeAll()
+                dismiss()
+            } catch is CancellationError {
+                isFinalizingDraft = false
+                return
+            } catch {
+                isFinalizingDraft = false
+                fail(error.localizedDescription)
+            }
+        }
+        activeTask = task
     }
 
     /// Assembles the current pages into a PDF written to a tracked temp file
@@ -521,173 +904,342 @@ struct ScannerFlowView: View {
     private func makeTempPDF() async throws -> URL {
         let pages = pages
         let name = fileName(for: "pdf")
-        let data = try await Task.detached(priority: .userInitiated) {
-            try PDFAssembler.pdfData(from: pages)
-        }.value
-        return try artifacts.makeFile(named: name, data: data)
+        let data = try await ScanRenderPipeline.pdfData(from: pages)
+        try Task.checkCancellation()
+        let url = try artifacts.makeFile(named: name, data: data)
+        do {
+            try Task.checkCancellation()
+            return url
+        } catch {
+            artifacts.remove(url)
+            throw error
+        }
     }
 
     private func previewPDF() {
         guard !busy else { return }
+        activeTask?.cancel()
         busy = true
-        Task { @MainActor in
+        let task = Task { @MainActor in
             defer { busy = false }
+            var url: URL?
             do {
-                let url = try await makeTempPDF()
-                lastPreviewURL = url
-                previewFile = PreviewFile(url: url)
+                url = try await makeTempPDF()
+                try Task.checkCancellation()
+                if let url {
+                    lastPreviewURL = url
+                    previewFile = PreviewFile(url: url)
+                }
+            } catch is CancellationError {
+                if let url { artifacts.remove(url) }
+                return
             } catch {
                 fail(error.localizedDescription)
             }
         }
+        activeTask = task
     }
 
     private func sharePDF() {
         guard !busy else { return }
+        activeTask?.cancel()
         busy = true
-        Task { @MainActor in
+        let task = Task { @MainActor in
             defer { busy = false }
+            var url: URL?
             do {
-                let url = try await makeTempPDF()
+                url = try await makeTempPDF()
+                try Task.checkCancellation()
+                guard let url else { return }
                 let activityVC = UIActivityViewController(activityItems: [url], applicationActivities: nil)
                 activityVC.completionWithItemsHandler = { _, _, _, _ in
                     artifacts.remove(url)
                 }
-                if let scene = UIApplication.shared.connectedScenes.first(
+                guard let scene = UIApplication.shared.connectedScenes.first(
                     where: { $0.activationState == .foregroundActive }
                 ) as? UIWindowScene,
-                    let root = scene.keyWindow?.rootViewController {
-                    var top = root
-                    while let presented = top.presentedViewController { top = presented }
-                    top.present(activityVC, animated: true)
+                    let root = scene.keyWindow?.rootViewController else {
+                    artifacts.remove(url)
+                    fail("The share sheet could not be presented.")
+                    return
                 }
+                var top = root
+                while let presented = top.presentedViewController { top = presented }
+                if let popover = activityVC.popoverPresentationController {
+                    popover.sourceView = top.view
+                    popover.sourceRect = CGRect(
+                        x: top.view.bounds.midX,
+                        y: top.view.bounds.midY,
+                        width: 1,
+                        height: 1
+                    )
+                    popover.permittedArrowDirections = []
+                }
+                top.present(activityVC, animated: true)
+            } catch is CancellationError {
+                if let url { artifacts.remove(url) }
+                return
             } catch {
                 fail(error.localizedDescription)
             }
         }
+        activeTask = task
     }
 
     // MARK: - Save paths
 
     @MainActor
     private func saveAsPDF() {
+        guard !busy else { return }
+        activeTask?.cancel()
+        isFinalizingDraft = true
         busy = true
-        Task { @MainActor in
+        let task = Task { @MainActor in
             defer { busy = false }
+            var records: [DocumentRecord] = []
             do {
+                try Task.checkCancellation()
                 let name = fileName(for: "pdf")
                 let pages = pages
-                let data = try await Task.detached(priority: .userInitiated) {
-                    try PDFAssembler.pdfData(from: pages)
-                }.value
+                let data = try await ScanRenderPipeline.pdfData(from: pages)
+                try Task.checkCancellation()
                 let record = try store.saveGeneratedFile(name: name, data: data, provenance: .scanned)
-                try store.recordOpen(record)
+                records = [record]
+                try Task.checkCancellation()
                 scanTrace("saved scan as PDF: \(record.displayName)")
-                finishSave([record])
+                try await finishSave(records)
+            } catch is CancellationError {
+                if let rollbackFailure = rollbackGeneratedRecords(records) {
+                    fail(rollbackFailure)
+                }
+                isFinalizingDraft = false
             } catch {
+                let rollbackFailure = rollbackGeneratedRecords(records)
+                isFinalizingDraft = false
                 scanTrace("PDF save failed: \(error.localizedDescription)")
-                fail(error.localizedDescription)
+                fail(rollbackFailure.map { "\(error.localizedDescription) \($0)" } ?? error.localizedDescription)
             }
         }
+        activeTask = task
     }
 
     @MainActor
     private func saveAsImages() {
+        guard !busy else { return }
+        activeTask?.cancel()
+        isFinalizingDraft = true
         busy = true
-        Task { @MainActor in
+        let task = Task { @MainActor in
             defer { busy = false }
+            var records: [DocumentRecord] = []
             do {
+                try Task.checkCancellation()
                 let base = defaultBaseName
                 let pages = pages
-                let encoded = try await Task.detached(priority: .userInitiated) { () -> [(name: String, data: Data)] in
-                    var encoded: [(name: String, data: Data)] = []
-                    for (index, image) in pages.enumerated() {
-                        guard let png = image.pngData() else {
-                            throw ScanSaveError.imageEncodingFailed
-                        }
-                        let name = pages.count > 1 ? "\(base) Page \(index + 1).png" : "\(base).png"
-                        encoded.append((name: name, data: png))
-                    }
-                    return encoded
-                }.value
-                var records: [DocumentRecord] = []
+                let imageData = try await ScanRenderPipeline.imageData(from: pages)
+                try Task.checkCancellation()
+                let encoded = imageData.enumerated().map { index, data in
+                    let name = pages.count > 1 ? "\(base) Page \(index + 1).png" : "\(base).png"
+                    return (name: name, data: data)
+                }
                 for page in encoded {
+                    try Task.checkCancellation()
                     records.append(try store.saveGeneratedFile(name: page.name, data: page.data, provenance: .scanned))
                 }
-                for record in records { try store.recordOpen(record) }
+                try Task.checkCancellation()
                 scanTrace("saved scan as \(records.count) image(s)")
-                finishSave(records)
+                try await finishSave(records)
+            } catch is CancellationError {
+                if let rollbackFailure = rollbackGeneratedRecords(records) {
+                    fail(rollbackFailure)
+                }
+                isFinalizingDraft = false
             } catch {
+                let rollbackFailure = rollbackGeneratedRecords(records)
+                isFinalizingDraft = false
                 scanTrace("image save failed: \(error.localizedDescription)")
-                fail(error.localizedDescription)
+                fail(rollbackFailure.map { "\(error.localizedDescription) \($0)" } ?? error.localizedDescription)
             }
         }
+        activeTask = task
     }
 
     @MainActor
     private func saveAsLongImage() {
+        guard !busy else { return }
+        activeTask?.cancel()
+        isFinalizingDraft = true
         busy = true
-        Task { @MainActor in
+        let task = Task { @MainActor in
             defer { busy = false }
+            var records: [DocumentRecord] = []
             do {
+                try Task.checkCancellation()
                 let name = fileName(for: "png")
                 let pages = pages
-                let data = try await Task.detached(priority: .userInitiated) {
-                    try LongImageAssembler.pngData(from: pages)
-                }.value
+                let data = try await ScanRenderPipeline.longImageData(from: pages)
+                try Task.checkCancellation()
                 let record = try store.saveGeneratedFile(name: name, data: data, provenance: .scanned)
-                try store.recordOpen(record)
+                records = [record]
+                try Task.checkCancellation()
                 scanTrace("saved scan as long image: \(record.displayName)")
-                finishSave([record])
+                try await finishSave(records)
+            } catch is CancellationError {
+                if let rollbackFailure = rollbackGeneratedRecords(records) {
+                    fail(rollbackFailure)
+                }
+                isFinalizingDraft = false
             } catch {
+                let rollbackFailure = rollbackGeneratedRecords(records)
+                isFinalizingDraft = false
                 scanTrace("long image save failed: \(error.localizedDescription)")
-                fail(error.localizedDescription)
+                fail(rollbackFailure.map { "\(error.localizedDescription) \($0)" } ?? error.localizedDescription)
             }
         }
+        activeTask = task
     }
 
     @MainActor
     private func saveAsText() {
+        guard !busy else { return }
+        activeTask?.cancel()
+        isFinalizingDraft = true
         busy = true
-        Task { @MainActor in
+        let task = Task { @MainActor in
             defer { busy = false }
+            var records: [DocumentRecord] = []
             do {
+                try Task.checkCancellation()
                 let pages = pages
-                let sections = try await Task.detached(priority: .userInitiated) { () -> [String] in
+                let imageData = try await ScanRenderPipeline.imageData(from: pages)
+                try Task.checkCancellation()
+                let sections = try await runCancellableDetachedAsync(priority: .userInitiated) {
                     var sections: [String] = []
-                    for (index, image) in pages.enumerated() {
-                        guard let jpeg = image.jpegData(compressionQuality: 0.9) else {
-                            throw ScanSaveError.imageEncodingFailed
-                        }
-                        let pageText = (try? await TextRecognition.recognizeText(in: jpeg)) ?? ""
+                    for (index, imageBytes) in imageData.enumerated() {
+                        try Task.checkCancellation()
+                        let pageText = try await TextRecognition.recognizeText(in: imageBytes)
+                        try Task.checkCancellation()
                         sections.append("Page \(index + 1)\n\(pageText.isEmpty ? "No text recognized." : pageText)")
                     }
                     return sections
-                }.value
+                }
+                try Task.checkCancellation()
                 let text = sections.joined(separator: "\n\n")
                 let record = try store.saveGeneratedFile(
                     name: fileName(for: "txt"),
                     data: Data(text.utf8),
                     provenance: .scanned
                 )
-                try store.recordOpen(record)
+                records = [record]
+                try Task.checkCancellation()
                 scanTrace("saved test paper OCR: \(record.displayName)")
+                try await cleanupDraftAfterSuccessfulSave()
                 ocrResult = OCRResult(
                     text: text,
                     savedName: record.displayName,
                     document: PresentedDocument(record: record)
                 )
+            } catch is CancellationError {
+                if let rollbackFailure = rollbackGeneratedRecords(records) {
+                    fail(rollbackFailure)
+                }
+                isFinalizingDraft = false
             } catch {
+                let rollbackFailure = rollbackGeneratedRecords(records)
+                isFinalizingDraft = false
                 scanTrace("test paper OCR save failed: \(error.localizedDescription)")
+                fail(rollbackFailure.map { "\(error.localizedDescription) \($0)" } ?? error.localizedDescription)
+            }
+        }
+        activeTask = task
+    }
+
+    @MainActor
+    private func recognizeIDCardText() {
+        guard !busy else { return }
+        activeTask?.cancel()
+        busy = true
+        let task = Task { @MainActor in
+            defer { busy = false }
+            do {
+                try Task.checkCancellation()
+                let imageData = try await ScanRenderPipeline.imageData(from: pages)
+                try Task.checkCancellation()
+                let text = try await runCancellableDetachedAsync(priority: .userInitiated) {
+                    var sections: [String] = []
+                    for (index, bytes) in imageData.enumerated() {
+                        try Task.checkCancellation()
+                        let recognized = try await TextRecognition.recognizeText(in: bytes)
+                        try Task.checkCancellation()
+                        sections.append("Side \(index + 1)\n\(recognized.isEmpty ? "No text recognized." : recognized)")
+                    }
+                    return sections.joined(separator: "\n\n")
+                }
+                try Task.checkCancellation()
+                ocrResult = OCRResult(text: text, savedName: nil, document: nil)
+            } catch is CancellationError {
+                return
+            } catch {
                 fail(error.localizedDescription)
             }
+        }
+        activeTask = task
+    }
+
+    @MainActor
+    private func finishSave(_ records: [DocumentRecord]) async throws {
+        try await cleanupDraftAfterSuccessfulSave()
+        // `discard` above invalidates the old generation. Do not throw after
+        // that point: the generated document and draft cleanup are committed,
+        // even if the caller's task was cancelled while the actor was busy.
+        savedDocuments = records.map { PresentedDocument(record: $0) }
+        stage = .saved(records.map(\.displayName))
+    }
+
+    @MainActor
+    private func cleanupDraftAfterSuccessfulSave() async throws {
+        await awaitDraftWrites()
+        try Task.checkCancellation()
+        try await draftStore.discard()
+        await resetDraftSession()
+    }
+
+    /// Refreshes all session tokens only after the actor has removed the
+    /// previous draft successfully. There is deliberately no cancellation
+    /// check between `discard()` and this refresh: discard is a committed
+    /// generation transition, and allowing cancellation to strand the old
+    /// token lets a later edit silently write into a discarded session.
+    @MainActor
+    private func resetDraftSession(resetMode: Bool = false) async {
+        draftGeneration = await draftStore.currentGeneration()
+        if resetMode {
+            activeMode = mode
+        }
+        draftID = UUID()
+        draftCreatedAt = Date()
+        draftRevision = 0
+    }
+
+    @MainActor
+    private func awaitDraftWrites() async {
+        let writes = draftWriteTasks
+        draftWriteTasks.removeAll()
+        for write in writes {
+            await write.value
         }
     }
 
     @MainActor
-    private func finishSave(_ records: [DocumentRecord]) {
-        savedDocuments = records.map { PresentedDocument(record: $0) }
-        stage = .saved(records.map(\.displayName))
+    private func rollbackGeneratedRecords(_ records: [DocumentRecord]) -> String? {
+        var failures: [String] = []
+        for record in records.reversed() {
+            do {
+                try store.delete(record)
+            } catch {
+                failures.append("The generated file \(record.displayName) could not be rolled back: \(error.localizedDescription)")
+            }
+        }
+        return failures.isEmpty ? nil : failures.joined(separator: " ")
     }
 
     private func fail(_ message: String) {

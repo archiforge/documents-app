@@ -82,8 +82,7 @@ final class DocumentStore {
             provenance: .imported,
             createdAt: FileBridge.creationDate(at: imported.url)
         )
-        context.insert(record)
-        try context.save()
+        try insertAndSave(record, cleanupRelativePath: record.relativePath)
         return record
     }
 
@@ -105,8 +104,7 @@ final class DocumentStore {
             importedAt: now(),
             provenance: provenance
         )
-        context.insert(record)
-        try context.save()
+        try insertAndSave(record, cleanupRelativePath: record.relativePath)
         return record
     }
 
@@ -129,8 +127,7 @@ final class DocumentStore {
             absolutePath: absolutePath,
             createdAt: FileBridge.creationDate(at: url)
         )
-        context.insert(record)
-        try context.save()
+        try insertAndSave(record)
         return record
     }
 
@@ -154,8 +151,7 @@ final class DocumentStore {
             provenance: .created,
             createdAt: FileBridge.creationDate(at: url)
         )
-        context.insert(record)
-        try context.save()
+        try insertAndSave(record, cleanupRelativePath: record.relativePath)
         return record
     }
 
@@ -164,7 +160,11 @@ final class DocumentStore {
     func trackedFilePaths() throws -> Set<String> {
         let descriptor = FetchDescriptor<DocumentRecord>()
         let records = try context.fetch(descriptor)
-        return Set(records.map(\.fileURL.standardizedFileURL.path))
+        return Set(records.map { record in
+            let url = record.absolutePath.map { URL(fileURLWithPath: $0) }
+                ?? fileBridge.absoluteURL(forRelativePath: record.relativePath)
+            return url.standardizedFileURL.path
+        })
     }
 
     // MARK: - Duplicate
@@ -397,15 +397,50 @@ final class DocumentStore {
     /// instead. The external file itself stays on disk unless a future,
     /// explicitly user-authorized flow removes it.
     func delete(_ record: DocumentRecord) throws {
+        let stage: FileBridge.DeletionStage?
         if record.absolutePath == nil {
-            try fileBridge.deleteFile(atRelativePath: record.relativePath)
+            // Stage bytes before touching SwiftData. If the save fails, the
+            // row can be rolled back and this exact payload can be restored;
+            // if the process dies, the manifest lets startup recovery decide
+            // whether the metadata transaction committed.
+            stage = try fileBridge.stageDeletion(
+                recordID: record.id,
+                atRelativePath: record.relativePath
+            )
+        } else {
+            stage = nil
         }
+
         context.delete(record)
         do {
             try save()
         } catch {
             context.rollback()
+            if let stage {
+                do {
+                    try fileBridge.restoreStagedDeletion(stage)
+                } catch {
+                    // Preserve the persistence failure for the caller. The
+                    // hidden stage remains available to startup recovery if
+                    // another file now occupies the original destination.
+                    storeLog.error(
+                        "Delete rollback could not restore \(stage.relativePath): \(error.localizedDescription)"
+                    )
+                }
+            }
             throw error
+        }
+
+        if let stage {
+            do {
+                try fileBridge.finalizeStagedDeletion(stage)
+            } catch {
+                // The record is already gone, so this is a cleanup failure;
+                // startup recovery will finalize the hidden stage later.
+                storeLog.error(
+                    "Delete cleanup deferred for \(stage.relativePath): \(error.localizedDescription)"
+                )
+            }
         }
     }
 
@@ -490,15 +525,32 @@ final class DocumentStore {
     /// Finds the tracked record for a container file, if any (used by Browse).
     func record(forRelativePath path: String) throws -> DocumentRecord? {
         let descriptor = FetchDescriptor<DocumentRecord>(
-            predicate: #Predicate { $0.relativePath == path }
+            predicate: #Predicate { $0.relativePath == path && $0.absolutePath == nil }
         )
         return try context.fetch(descriptor).first
     }
 
-    private func save() throws {
+    func save() throws {
         if let saveFailureForTesting {
             throw saveFailureForTesting
         }
         try context.save()
+    }
+
+    /// Inserts a newly-created record and persists it. If persistence fails,
+    /// remove the pending model and, when supplied, the newly-created file.
+    /// Adopted files deliberately pass no cleanup path because they predate
+    /// the record and belong to their existing location.
+    func insertAndSave(_ record: DocumentRecord, cleanupRelativePath: String? = nil) throws {
+        context.insert(record)
+        do {
+            try save()
+        } catch {
+            context.rollback()
+            if let cleanupRelativePath {
+                try? fileBridge.deleteFile(atRelativePath: cleanupRelativePath)
+            }
+            throw error
+        }
     }
 }

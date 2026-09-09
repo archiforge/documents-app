@@ -19,22 +19,23 @@ struct FormatFilterRow: View {
 
     private func chip(_ filter: FormatFilter) -> some View {
         let isSelected = filter == selection
-        let foreground: Color = isSelected ? .white : .primary
-        let background: Color = isSelected ? .accentColor : Color(.secondarySystemBackground)
         return Button {
             withAnimation(.snappy) {
                 selection = filter
             }
         } label: {
-            Text(filter.title)
+            Text(LocalizedStringKey(filter.title))
                 .font(.subheadline.weight(isSelected ? .semibold : .regular))
-                .padding(.horizontal, 14)
-                .padding(.vertical, 7)
-                .foregroundStyle(foreground)
-                .background(Capsule().fill(background))
+                .foregroundStyle(.primary)
+                .underline(isSelected, color: .accentColor)
+                // Keep the compact ledger row visually light while giving
+                // every filter the native 44-point minimum touch target.
+                .frame(minWidth: 44, minHeight: 44)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityLabel("\(filter.title) filter")
+        .accessibilityValue(isSelected ? "Selected" : "")
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }

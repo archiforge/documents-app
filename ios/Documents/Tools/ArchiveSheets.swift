@@ -91,8 +91,8 @@ struct CompressSheet: View {
     }
 }
 
-/// Extract: pick a .zip, unpack it into Documents/Extracted/<name>/, and
-/// list the extracted files. Non-zip archives report pending support.
+/// Extract: pick a ZIP, 7z, or RAR archive, unpack it into
+/// Documents/Extracted/<name>/, and list the extracted files.
 struct ExtractSheet: View {
     @Environment(DocumentStore.self) private var store
     @Environment(\.dismiss) private var dismiss
@@ -103,6 +103,7 @@ struct ExtractSheet: View {
     @State private var showError = false
     @State private var extractedNames: [String]?
     @State private var extractedFolder = ""
+    @State private var extractionTask: Task<Void, Never>?
 
     private static var allowedTypes: [UTType] {
         var types: [UTType] = [.zip]
@@ -117,12 +118,12 @@ struct ExtractSheet: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 20) {
-                Image(systemName: "shippingbox.open")
+                Image(systemName: "shippingbox")
                     .font(.system(size: 56))
                     .foregroundStyle(.tint)
                 Text("Extract")
                     .font(.title2.bold())
-                Text("Pick a ZIP archive and Documents unpacks it into a folder you can browse inside the app.")
+                Text("Pick a ZIP, 7z, or RAR archive and Documents unpacks it into a folder you can browse inside the app.")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -145,7 +146,7 @@ struct ExtractSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button("Cancel") { cancelExtraction() }
                 }
             }
             .fileImporter(
@@ -160,6 +161,9 @@ struct ExtractSheet: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text(errorMessage)
+        }
+        .onDisappear {
+            extractionTask?.cancel()
         }
         .sheet(item: Binding(
             get: { extractedNames.map { ExtractedFiles(names: $0, folder: extractedFolder) } },
@@ -177,49 +181,108 @@ struct ExtractSheet: View {
         let folder: String
     }
 
+    private struct ExtractionResult: Sendable {
+        let stagingURL: URL
+        let folderName: String
+        let names: [String]
+    }
+
     private func handlePicker(_ result: Result<[URL], any Error>) {
         switch result {
         case .success(let urls):
             guard let url = urls.first else { return }
-            guard url.pathExtension.lowercased() == "zip" else {
-                errorMessage = "Only ZIP archives can be extracted for now. Support for 7z and RAR arrives with libarchive in a later phase."
-                showError = true
-                return
-            }
-            extract(zipURL: url)
+            extract(archiveURL: url)
         case .failure(let error):
             errorMessage = error.localizedDescription
             showError = true
         }
     }
 
-    private func extract(zipURL: URL) {
+    private func extract(archiveURL: URL) {
+        extractionTask?.cancel()
         working = true
-        Task { @MainActor in
-            defer { working = false }
-            do {
-                let scoped = zipURL.startAccessingSecurityScopedResource()
-                defer {
-                    if scoped { zipURL.stopAccessingSecurityScopedResource() }
+        let fileBridge = store.fileBridge
+        let archiveExtension = archiveURL.pathExtension.lowercased()
+        let folderName = archiveURL.deletingPathExtension().lastPathComponent
+        let scoped = archiveURL.startAccessingSecurityScopedResource()
+        let worker = Task.detached(priority: .userInitiated) {
+            let tempURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent("Documents-Archive-\(UUID().uuidString)")
+                .appendingPathExtension(archiveExtension)
+            let stagingURL = try fileBridge.makeArchiveStagingDirectory()
+            var keepStaging = false
+            defer {
+                try? FileManager.default.removeItem(at: tempURL)
+                if !keepStaging {
+                    fileBridge.removeArchiveStagingDirectory(stagingURL)
                 }
-                let tempURL = FileManager.default.temporaryDirectory
-                    .appendingPathComponent(UUID().uuidString)
-                    .appendingPathExtension("zip")
-                try FileManager.default.copyItem(at: zipURL, to: tempURL)
-                defer { try? FileManager.default.removeItem(at: tempURL) }
+            }
 
-                let folderName = zipURL.deletingPathExtension().lastPathComponent
-                let destination = store.fileBridge.documentsDirectory
-                    .appendingPathComponent("Extracted", isDirectory: true)
-                    .appendingPathComponent(folderName, isDirectory: true)
-                let files = try ArchiveService.extract(zipAt: tempURL, into: destination)
-                extractedFolder = "Extracted/\(folderName)"
-                extractedNames = files
+            try Task.checkCancellation()
+            try FileManager.default.copyItem(at: archiveURL, to: tempURL)
+            try Task.checkCancellation()
+            let names = try ArchiveService.extract(
+                archiveAt: tempURL,
+                into: stagingURL
+            )
+            try Task.checkCancellation()
+            keepStaging = true
+            return ExtractionResult(
+                stagingURL: stagingURL,
+                folderName: folderName,
+                names: names
+            )
+        }
+
+        extractionTask = Task { @MainActor in
+            var result: ExtractionResult?
+            defer {
+                if scoped { archiveURL.stopAccessingSecurityScopedResource() }
+                working = false
+                extractionTask = nil
+            }
+            do {
+                result = try await withTaskCancellationHandler(operation: {
+                    try await worker.value
+                }, onCancel: {
+                    worker.cancel()
+                })
+                try Task.checkCancellation()
+                guard let result else { return }
+
+                let destination = try fileBridge.makeArchiveExtractionDestination(
+                    named: result.folderName
+                )
+                do {
+                    try FileManager.default.moveItem(
+                        at: result.stagingURL,
+                        to: destination.url
+                    )
+                } catch {
+                    fileBridge.removeArchiveStagingDirectory(result.stagingURL)
+                    throw error
+                }
+                extractedFolder = destination.relativePath
+                extractedNames = result.names
+            } catch is CancellationError {
+                if let stagingURL = result?.stagingURL {
+                    fileBridge.removeArchiveStagingDirectory(stagingURL)
+                }
             } catch {
+                if let stagingURL = result?.stagingURL {
+                    fileBridge.removeArchiveStagingDirectory(stagingURL)
+                }
                 errorMessage = error.localizedDescription
                 showError = true
             }
         }
+    }
+
+    private func cancelExtraction() {
+        extractionTask?.cancel()
+        extractionTask = nil
+        working = false
+        dismiss()
     }
 }
 
@@ -249,7 +312,7 @@ struct ExtractedFilesSheet: View {
                 }
             }
             .safeAreaInset(edge: .bottom) {
-                Text("Find them in Browse → \(folder).")
+                Text("Find them in Manage → Files imports → \(folder).")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .padding(.vertical, 8)

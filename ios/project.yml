@@ -3,6 +3,7 @@ name: Documents
 options:
   createIntermediateGroups: true
   bundleIdPrefix: com.docdeck
+  developmentRegion: en
 
 settings:
   base:
@@ -15,6 +16,8 @@ packages:
   ZIPFoundation:
     url: https://github.com/weichsel/ZIPFoundation
     from: "0.9.19"
+  NativeArchives:
+    path: Packages/NativeArchives
 
 targets:
   Documents:
@@ -25,6 +28,7 @@ targets:
       - path: Documents
     dependencies:
       - package: ZIPFoundation
+      - package: NativeArchives
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.docdeck.app
@@ -32,8 +36,10 @@ targets:
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_CFBundleDisplayName: Documents
         INFOPLIST_KEY_NSCameraUsageDescription: Documents uses the camera to scan documents, ID cards, and test papers.
+        INFOPLIST_KEY_NSFaceIDUsageDescription: Documents uses Face ID to unlock your encrypted Private Safe copies.
         TARGETED_DEVICE_FAMILY: "1,2"
         ENABLE_TESTABILITY: "YES"
+        SWIFT_EMIT_LOC_STRINGS: "YES"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
 
@@ -43,9 +49,12 @@ targets:
     deploymentTarget: "26.0"
     sources:
       - path: DocumentsTests
+    resources:
+      - path: DocumentsTests/Fixtures
     dependencies:
       - target: Documents
       - package: ZIPFoundation
+      - package: NativeArchives
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.docdeck.app.tests

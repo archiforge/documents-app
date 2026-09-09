@@ -48,6 +48,20 @@ enum PDFToolbox {
         return document.pageCount
     }
 
+    /// Creates a password-protected copy using PDFKit's native encryption
+    /// options. The dedicated helper owns validation and output verification.
+    static func encrypt(
+        _ data: Data,
+        password: String,
+        confirmation: String
+    ) throws -> Data {
+        try PDFPasswordProtection.encrypt(
+            data,
+            password: password,
+            confirmation: confirmation
+        )
+    }
+
     // MARK: - Merge
 
     /// Merges two or more PDFs into a single PDF, preserving page order.

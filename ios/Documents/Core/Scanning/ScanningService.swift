@@ -3,7 +3,7 @@ import UIKit
 import VisionKit
 
 /// The three scanner entry points from the Tools grid.
-enum ScanMode: String, CaseIterable, Identifiable, Hashable, Sendable {
+enum ScanMode: String, CaseIterable, Codable, Identifiable, Hashable, Sendable {
     case document
     case idCard
     case testPaper

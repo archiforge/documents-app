@@ -1,0 +1,28 @@
+office:
+  conversion:
+    # Production must provide every isolation path. The service refuses
+    # conversion whenever any required path is unavailable.
+    libre-office-executable: ${LIBREOFFICE_EXECUTABLE:soffice}
+    sandbox-executable: ${OFFICE_SANDBOX_EXECUTABLE:}
+    sandbox-profile-template: ${OFFICE_SANDBOX_PROFILE:}
+    resource-launcher-executable: ${OFFICE_RESOURCE_LAUNCHER:}
+    workspace-root: ${OFFICE_WORKSPACE_ROOT:}
+    runtime-read-root: ${LIBREOFFICE_RUNTIME_ROOT:}
+    auth-token: ${OFFICE_CONVERSION_TOKEN:}
+    max-input-bytes: ${OFFICE_MAX_INPUT_BYTES:52428800}
+    max-output-bytes: ${OFFICE_MAX_OUTPUT_BYTES:104857600}
+    timeout: ${OFFICE_CONVERSION_TIMEOUT:120s}
+    max-concurrent-jobs: ${OFFICE_MAX_CONCURRENT_JOBS:2}
+    max-zip-entries: ${OFFICE_MAX_ZIP_ENTRIES:10000}
+    max-uncompressed-archive-bytes: ${OFFICE_MAX_UNCOMPRESSED_BYTES:104857600}
+    max-process-memory-bytes: ${OFFICE_MAX_PROCESS_MEMORY_BYTES:1073741824}
+
+spring:
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 51MB
+      resolve-lazily: true
+server:
+  error:
+    include-message: never

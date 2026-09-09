@@ -17,6 +17,7 @@ struct BulkSelectionActions: ViewModifier {
     let selectedRecords: [DocumentRecord]
 
     @State private var confirmDelete = false
+    @State private var showMovePicker = false
     @State private var failureText: String?
     @State private var showFailure = false
 
@@ -44,6 +45,12 @@ struct BulkSelectionActions: ViewModifier {
                 Button("OK", role: .cancel) {}
             } message: {
                 Text(failureText ?? "")
+            }
+            .sheet(isPresented: $showMovePicker) {
+                FolderDestinationPicker { destinationPath in
+                    showMovePicker = false
+                    moveSelection(to: destinationPath)
+                }
             }
     }
 
@@ -90,6 +97,11 @@ struct BulkSelectionActions: ViewModifier {
             } label: {
                 Label("Compress", systemImage: "doc.zipper")
             }
+            Button {
+                showMovePicker = true
+            } label: {
+                Label("Move", systemImage: "folder")
+            }
         } label: {
             Label("More", systemImage: "ellipsis.circle")
         }
@@ -133,6 +145,33 @@ struct BulkSelectionActions: ViewModifier {
         }
     }
 
+    private func moveSelection(to destinationPath: String) {
+        let records = selectedRecords
+        var movedIDs: Set<UUID> = []
+        var failures: [String] = []
+
+        for record in records {
+            do {
+                try store.move(record, toRelativeFolder: destinationPath)
+                movedIDs.insert(record.id)
+            } catch {
+                failures.append("\(record.displayName): \(error.localizedDescription)")
+            }
+        }
+
+        selection.remove(movedIDs)
+        if selection.isEmpty {
+            selection.exit()
+        }
+        guard !failures.isEmpty else { return }
+
+        let movedCount = movedIDs.count
+        let prefix = movedCount == 0
+            ? "No documents were moved."
+            : "Moved \(movedCount) document\(movedCount == 1 ? "" : "s"); \(failures.count) failed."
+        fail(prefix + "\n" + failures.joined(separator: "\n"))
+    }
+
     private func run(_ action: () throws -> Void) {
         do {
             try action()
@@ -143,6 +182,11 @@ struct BulkSelectionActions: ViewModifier {
 
     private func fail(_ error: any Error) {
         failureText = error.localizedDescription
+        showFailure = true
+    }
+
+    private func fail(_ message: String) {
+        failureText = message
         showFailure = true
     }
 }

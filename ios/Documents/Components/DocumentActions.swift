@@ -29,12 +29,24 @@ enum RenameForm {
 /// counter, clear button, Cancel / Confirm. Confirms with the base name —
 /// the extension is not editable and `DocumentStore.rename` re-appends it.
 struct RenameSheet: View {
-    let record: DocumentRecord
+    private let startingName: String
     let onConfirm: (String) -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var name = ""
     @FocusState private var focused: Bool
+
+    init(record: DocumentRecord, onConfirm: @escaping (String) -> Void) {
+        self.startingName = RenameForm.baseName(of: record.displayName)
+        self.onConfirm = onConfirm
+    }
+
+    /// Drafts such as unfinished scans do not have a DocumentRecord yet, but
+    /// use the same validated 50-character rename surface and counter.
+    init(initialName: String, onConfirm: @escaping (String) -> Void) {
+        self.startingName = RenameForm.clamped(initialName)
+        self.onConfirm = onConfirm
+    }
 
     var body: some View {
         NavigationStack {
@@ -46,14 +58,18 @@ struct RenameSheet: View {
                             .onChange(of: name) { _, newValue in
                                 name = RenameForm.clamped(newValue)
                             }
+                            .accessibilityLabel("Document name")
+                            .accessibilityValue(name.isEmpty ? "Empty" : name)
                         if !name.isEmpty {
                             Button {
                                 name = ""
                             } label: {
                                 Image(systemName: "xmark.circle.fill")
                             }
+                            .frame(minWidth: 44, minHeight: 44)
                             .foregroundStyle(.tertiary)
                             .accessibilityLabel("Clear name")
+                            .accessibilityHint("Clears the document name")
                         }
                     }
                 } footer: {
@@ -61,6 +77,7 @@ struct RenameSheet: View {
                         .frame(maxWidth: .infinity, alignment: .trailing)
                 }
             }
+            .accessibilityIdentifier("rename-sheet")
             .navigationTitle("Rename")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -76,9 +93,10 @@ struct RenameSheet: View {
                 }
             }
         }
-        .presentationDetents([.height(240)])
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
         .onAppear {
-            name = RenameForm.baseName(of: record.displayName)
+            name = RenameForm.clamped(startingName)
             focused = true
         }
     }
@@ -165,6 +183,7 @@ private struct DocumentActions: ViewModifier {
 
     @State private var showRename = false
     @State private var showInfo = false
+    @State private var showPrivateSafeCopy = false
     @State private var failureText: String?
     @State private var showFailure = false
 
@@ -178,6 +197,9 @@ private struct DocumentActions: ViewModifier {
             }
             .sheet(isPresented: $showInfo) {
                 DocumentInfoSheet(record: record)
+            }
+            .sheet(isPresented: $showPrivateSafeCopy) {
+                PrivateSafeCopySheet(record: record)
             }
             .alert("Action failed", isPresented: $showFailure) {
                 Button("OK", role: .cancel) {}
@@ -219,6 +241,11 @@ private struct DocumentActions: ViewModifier {
             duplicate()
         } label: {
             Label("Duplicate", systemImage: "plus.square.on.square")
+        }
+        Button {
+            showPrivateSafeCopy = true
+        } label: {
+            Label("Copy to Private Safe", systemImage: "lock.shield")
         }
         Divider()
         Button {

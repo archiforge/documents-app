@@ -9,6 +9,7 @@ struct ConvertFlowView: View {
     var onClose: (() -> Void)?
 
     @Environment(DocumentStore.self) private var store
+    @Environment(DeviceLibraryService.self) private var library
 
     @Query(
         filter: #Predicate<DocumentRecord> { !$0.isTrashed },
@@ -22,6 +23,7 @@ struct ConvertFlowView: View {
     @State private var errorMessage = ""
     @State private var showError = false
     @State private var presentedDocument: PresentedDocument?
+    @State private var conversionTask: Task<Void, Never>?
 
     var body: some View {
         List {
@@ -37,19 +39,30 @@ struct ConvertFlowView: View {
                         .foregroundStyle(.secondary)
                 }
                 ForEach(records) { record in
+                    let sourceExtension = (record.displayName as NSString).pathExtension.lowercased()
+                    let availability = fixedTarget.map {
+                        $0.availability(for: record.kind, sourceExtension: sourceExtension)
+                    }
                     DocumentRow(record: record) {
                         tapped(record)
                     }
-                    .disabled(working)
+                    .disabled(working || availability?.isAvailable == false)
+                    .accessibilityValue(
+                        availability?.isAvailable == false ? "Unavailable" : ""
+                    )
+                    .accessibilityHint(
+                        availability?.message(sourceKind: record.kind, target: fixedTarget ?? .pdf)
+                            ?? ""
+                    )
                 }
             }
         }
         .navigationTitle(fixedTarget.map { "To \($0.label)" } ?? "Format Convert")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            if let onClose {
+            if onClose != nil {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { onClose() }
+                    Button("Done") { close() }
                 }
             }
         }
@@ -61,24 +74,31 @@ struct ConvertFlowView: View {
             }
         }
         .sheet(item: $targetForSource) { source in
-            ConversionTargetSheet { target in
+            ConversionTargetSheet(
+                sourceKind: source.kind,
+                sourceExtension: (source.displayName as NSString).pathExtension.lowercased()
+            ) { target in
                 targetForSource = nil
                 convert(source, to: target)
             }
         }
-        .alert("Conversion pending", isPresented: $showError) {
+        .alert("Conversion failed", isPresented: $showError) {
             Button("OK", role: .cancel) {}
         } message: {
             Text(errorMessage)
         }
         .documentViewer(item: $presentedDocument)
+        .onDisappear {
+            conversionTask?.cancel()
+            conversionTask = nil
+        }
     }
 
     private var scopeDescription: String {
         if fixedTarget == .pdf || fixedTarget == nil {
-            "Text, Markdown, HTML, and images convert to PDF right on this device. Office formats convert once the server service arrives in Phase 2b."
+            "Text, Markdown, HTML, and images convert to PDF on this device. Office files use the configured conversion service."
         } else {
-            "Producing \(fixedTarget?.label ?? "") files needs the server conversion service, which arrives in Phase 2b."
+            "Producing \(fixedTarget?.label ?? "") files uses the configured conversion service."
         }
     }
 
@@ -91,23 +111,47 @@ struct ConvertFlowView: View {
     }
 
     private func convert(_ record: DocumentRecord, to target: ConversionTarget) {
+        let sourceExtension = (record.displayName as NSString).pathExtension.lowercased()
+        let availability = target.availability(for: record.kind, sourceExtension: sourceExtension)
+        guard availability.isAvailable else {
+            errorMessage = availability.message(sourceKind: record.kind, target: target)
+                ?? "The requested conversion is unavailable."
+            showError = true
+            return
+        }
         working = true
-        Task { @MainActor in
+        conversionTask?.cancel()
+        conversionTask = Task { @MainActor in
             defer { working = false }
             do {
-                let saved = try await ConversionCoordinator.convert(record, to: target, store: store)
-                try store.recordOpen(saved)
+                let saved = try await ConversionCoordinator.convert(
+                    record,
+                    to: target,
+                    store: store,
+                    grantService: library.grantService
+                )
+                try Task.checkCancellation()
                 presentedDocument = PresentedDocument(record: saved)
             } catch {
-                errorMessage = error.localizedDescription
-                showError = true
+                if !Task.isCancelled {
+                    errorMessage = error.localizedDescription
+                    showError = true
+                }
             }
         }
+    }
+
+    private func close() {
+        conversionTask?.cancel()
+        conversionTask = nil
+        onClose?()
     }
 }
 
 /// Target selection for the free-form "Format Convert" entry.
 struct ConversionTargetSheet: View {
+    let sourceKind: DocumentKind
+    let sourceExtension: String
     @Environment(\.dismiss) private var dismiss
 
     let onSelect: (ConversionTarget) -> Void
@@ -115,11 +159,18 @@ struct ConversionTargetSheet: View {
     var body: some View {
         NavigationStack {
             List(ConversionTarget.allCases, id: \.self) { target in
+                let availability = target.availability(for: sourceKind, sourceExtension: sourceExtension)
                 Button {
                     onSelect(target)
                 } label: {
                     Label("To \(target.label)", systemImage: target.symbolName)
                 }
+                .disabled(!availability.isAvailable)
+                .accessibilityValue(availability.isAvailable ? "Available" : "Unavailable")
+                .accessibilityHint(
+                    availability.message(sourceKind: sourceKind, target: target)
+                        ?? "Available on this device"
+                )
             }
             .navigationTitle("Convert To")
             .navigationBarTitleDisplayMode(.inline)
@@ -129,7 +180,7 @@ struct ConversionTargetSheet: View {
                 }
             }
         }
-        .presentationDetents([.medium])
+        .presentationDetents([.medium, .large])
     }
 }
 

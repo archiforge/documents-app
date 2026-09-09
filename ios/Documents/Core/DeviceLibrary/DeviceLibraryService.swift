@@ -101,13 +101,38 @@ final class DeviceLibraryService {
         }
 
         do {
+            // A move journal can leave bytes at the destination while the
+            // persisted row still names the source. Reserve both paths until
+            // StartupRecovery settles that transaction; otherwise this pass
+            // could adopt the destination as a duplicate record. If the
+            // journal cannot be enumerated or decoded, defer all app-owned
+            // adoption for this pass and let recovery retry next launch.
+            let reservedMovePaths: Set<String>
+            let canAdoptAppContainer: Bool
+            do {
+                reservedMovePaths = try store.fileBridge.unresolvedMovePaths()
+                canAdoptAppContainer = true
+            } catch {
+                reservedMovePaths = []
+                canAdoptAppContainer = false
+            }
+
             var tracked = try store.trackedFilePaths()
             // `adopt` re-inserts each adopted path into `tracked`, so
             // overlapping granted folders never double-adopt a file.
-            func adopt(_ urls: [URL], provenance: Provenance, external: Bool) throws {
+            func adopt(
+                _ urls: [URL],
+                provenance: Provenance,
+                external: Bool,
+                skipReservedAppPaths: Bool = false
+            ) throws {
                 for url in urls {
                     let path = url.standardizedFileURL.path
                     guard !tracked.contains(path) else { continue }
+                    if skipReservedAppPaths {
+                        let relativePath = store.fileBridge.relativePath(for: url)
+                        guard !reservedMovePaths.contains(relativePath) else { continue }
+                    }
                     guard Self.isIndexable(filename: url.lastPathComponent) else { continue }
                     _ = try store.adoptFile(
                         at: url,
@@ -117,7 +142,14 @@ final class DeviceLibraryService {
                     tracked.insert(path)
                 }
             }
-            try adopt(discovered, provenance: .device, external: false)
+            if canAdoptAppContainer {
+                try adopt(
+                    discovered,
+                    provenance: .device,
+                    external: false,
+                    skipReservedAppPaths: true
+                )
+            }
             try adopt(grantedFiles, provenance: .device, external: true)
             try adopt(ubiquityFiles, provenance: .cloud, external: true)
             pruneVanishedExternals(store: store)

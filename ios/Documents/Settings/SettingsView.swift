@@ -26,6 +26,7 @@ struct SettingsView: View {
         NavigationStack {
             List {
                 indexedFoldersSection
+                conversionSection
                 storageSection
                 aboutSection
             }
@@ -139,6 +140,17 @@ struct SettingsView: View {
     }
 
     // MARK: - Storage & about
+
+    private var conversionSection: some View {
+        Section("Conversion") {
+            NavigationLink {
+                OfficeConversionSettingsView()
+            } label: {
+                Label("Office Conversion", systemImage: "arrow.left.arrow.right")
+            }
+            .accessibilityIdentifier("office-conversion-settings-entry")
+        }
+    }
 
     private var storageSection: some View {
         Section("Storage") {

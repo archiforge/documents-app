@@ -1,17 +1,15 @@
 import SwiftUI
 
-/// The five-tab home shell: Recent, Favorites, Tools, Cloud, Browse. Holds
-/// the tab selection so app-icon quick actions can switch tabs.
+/// The three-tab home shell: Recent, Tools, Manage. Holds the tab selection so
+/// app-icon quick actions can switch tabs.
 struct HomeView: View {
     @Environment(QuickActionRouter.self) private var quickActions
     @Environment(\.scenePhase) private var scenePhase
 
-    enum HomeTab: Hashable {
+    enum HomeTab: Hashable, CaseIterable {
         case recent
-        case favorites
         case tools
-        case cloud
-        case browse
+        case manage
     }
 
     @State private var selection: HomeTab = .recent
@@ -21,17 +19,11 @@ struct HomeView: View {
             Tab("Recent", systemImage: "clock", value: HomeTab.recent) {
                 RecentTab()
             }
-            Tab("Favorites", systemImage: "star", value: HomeTab.favorites) {
-                FavoritesTab()
-            }
             Tab("Tools", systemImage: "square.grid.2x2", value: HomeTab.tools) {
                 ToolsTab()
             }
-            Tab("Cloud", systemImage: "cloud", value: HomeTab.cloud) {
-                CloudTab()
-            }
-            Tab("Browse", systemImage: "folder", value: HomeTab.browse) {
-                BrowseTab()
+            Tab("Manage", systemImage: "folder", value: HomeTab.manage) {
+                ManageTab()
             }
         }
         .onAppear(perform: routeStagedShortcut)

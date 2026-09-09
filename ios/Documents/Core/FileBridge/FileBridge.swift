@@ -3,11 +3,26 @@ import Foundation
 /// Errors surfaced by filesystem bridge operations.
 enum FileBridgeError: LocalizedError {
     case deletionFailed(relativePath: String, underlying: any Error)
+    case deletionPathInvalid(relativePath: String)
+    case deletionStagingFailed(relativePath: String, underlying: any Error)
+    case deletionRestoreConflict(relativePath: String)
+    case deletionRestoreFailed(relativePath: String, underlying: any Error)
+    case deletionFinalizeFailed(relativePath: String, underlying: any Error)
 
     var errorDescription: String? {
         switch self {
         case .deletionFailed:
             "The file could not be deleted."
+        case .deletionPathInvalid:
+            "The file path is not inside the app's Documents directory."
+        case .deletionStagingFailed:
+            "The file could not be staged for deletion."
+        case .deletionRestoreConflict:
+            "The original file location is occupied by another file."
+        case .deletionRestoreFailed:
+            "The staged file could not be restored."
+        case .deletionFinalizeFailed:
+            "The staged deletion could not be finalized."
         }
     }
 }
@@ -20,6 +35,25 @@ enum FileBridgeError: LocalizedError {
 /// " (n)" suffix, and handles physical deletion.
 struct FileBridge: Sendable {
     let documentsDirectory: URL
+
+    /// A hidden directory under the injected container root keeps pending
+    /// permanent deletions out of the device-library index while they wait
+    /// for their metadata transaction to settle.
+    private static let deletionStagingDirectoryName = ".document-delete-staging"
+    private static let deletionPayloadSuffix = ".payload"
+    private static let deletionManifestSuffix = ".json"
+
+    struct DeletionStage: Sendable, Equatable {
+        let recordID: UUID
+        let relativePath: String
+        let stagedURL: URL
+        let manifestURL: URL
+    }
+
+    private struct DeletionManifest: Codable {
+        let recordID: UUID
+        let relativePath: String
+    }
 
     init(documentsDirectory: URL = FileBridge.defaultDocumentsDirectory) {
         self.documentsDirectory = documentsDirectory
@@ -114,14 +148,428 @@ struct FileBridge: Sendable {
         documentsDirectory.appendingPathComponent(path)
     }
 
+    /// Deletion is allowed to use nested app-owned paths, but it must never
+    /// follow a traversal component or a symlink into another location. The
+    /// folder bridge owns the shared resolver so Move and deletion enforce the
+    /// same containment rules.
+    private func validatedDeletionURL(forRelativePath path: String) throws -> URL {
+        guard !path.isEmpty else {
+            throw FileBridgeError.deletionPathInvalid(relativePath: path)
+        }
+        do {
+            // A user-created document may have a dot-prefixed filename. Keep
+            // hidden intermediate directories forbidden while allowing that
+            // final file component to be deleted safely.
+            return try validatedURL(forRelativePath: path, allowingHiddenFinalComponent: true)
+        } catch {
+            throw FileBridgeError.deletionPathInvalid(relativePath: path)
+        }
+    }
+
+    /// Resolves the hidden staging directory without following a symlink at
+    /// the injected Documents root or at the staging directory itself.
+    private func deletionStagingDirectoryURL() throws -> URL {
+        let root = documentsDirectory.standardizedFileURL
+        guard !isSymbolicLinkEntry(at: root) else {
+            throw FileBridgeError.deletionPathInvalid(relativePath: root.path)
+        }
+
+        let stagingDirectory = root.appendingPathComponent(
+            Self.deletionStagingDirectoryName,
+            isDirectory: true
+        )
+        let fileManager = FileManager.default
+        guard !isSymbolicLinkEntry(at: stagingDirectory) else {
+            throw FileBridgeError.deletionPathInvalid(relativePath: stagingDirectory.path)
+        }
+        if fileManager.fileExists(atPath: stagingDirectory.path) {
+            guard
+                (try? stagingDirectory.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory == true
+            else {
+                throw FileBridgeError.deletionPathInvalid(relativePath: stagingDirectory.path)
+            }
+        }
+        return stagingDirectory
+    }
+
+    /// Verifies that a stage's URLs are direct children of the hidden staging
+    /// directory. This also rejects symlink payloads and manifests, including
+    /// a symlink swapped in between recovery passes.
+    private func validateDeletionStage(_ stage: DeletionStage) throws {
+        let stagingDirectory = try deletionStagingDirectoryURL()
+        let stagingPath = stagingDirectory.standardizedFileURL.path
+        guard
+            stage.stagedURL.deletingLastPathComponent().standardizedFileURL.path == stagingPath,
+            stage.manifestURL.deletingLastPathComponent().standardizedFileURL.path == stagingPath,
+            stage.stagedURL.pathExtension == String(Self.deletionPayloadSuffix.dropFirst()),
+            stage.manifestURL.pathExtension == String(Self.deletionManifestSuffix.dropFirst()),
+            deletionArtifactRecordID(for: stage.stagedURL) == stage.recordID,
+            deletionArtifactRecordID(for: stage.manifestURL) == stage.recordID,
+            !isSymbolicLinkEntry(at: stage.stagedURL),
+            !isSymbolicLinkEntry(at: stage.manifestURL)
+        else {
+            throw FileBridgeError.deletionPathInvalid(relativePath: stage.relativePath)
+        }
+    }
+
+    private func deletionArtifactRecordID(for url: URL) -> UUID? {
+        UUID(uuidString: url.deletingPathExtension().lastPathComponent)
+    }
+
+    private func unresolvedDeletionArtifactError(for url: URL) -> FileBridgeError {
+        FileBridgeError.deletionStagingFailed(
+            relativePath: url.lastPathComponent,
+            underlying: CocoaError(.fileReadCorruptFile)
+        )
+    }
+
+    private func isRegularDeletionFile(at url: URL) -> Bool {
+        guard !isSymbolicLinkEntry(at: url) else { return false }
+        return (try? url.resourceValues(forKeys: [.isRegularFileKey]))?.isRegularFile == true
+    }
+
+    /// Moves an app-owned file into a hidden staging directory and writes a
+    /// manifest that lets the next launch determine whether the metadata
+    /// transaction committed. A missing source is already idempotently
+    /// deleted and returns no stage.
+    @discardableResult
+    func stageDeletion(recordID: UUID, atRelativePath relativePath: String) throws -> DeletionStage? {
+        let sourceURL = try validatedDeletionURL(forRelativePath: relativePath)
+        let fileManager = FileManager.default
+        guard fileManager.fileExists(atPath: sourceURL.path) else { return nil }
+        guard isRegularDeletionFile(at: sourceURL) else {
+            throw FileBridgeError.deletionPathInvalid(relativePath: relativePath)
+        }
+
+        try ensureDocumentsDirectory()
+        let stagingDirectory = try deletionStagingDirectoryURL()
+        try fileManager.createDirectory(
+            at: stagingDirectory,
+            withIntermediateDirectories: true
+        )
+
+        let token = recordID.uuidString
+        let stagedURL = stagingDirectory.appendingPathComponent(
+            token + Self.deletionPayloadSuffix,
+            isDirectory: false
+        )
+        let manifestURL = stagingDirectory.appendingPathComponent(
+            token + Self.deletionManifestSuffix,
+            isDirectory: false
+        )
+        guard
+            !fileManager.fileExists(atPath: stagedURL.path),
+            !fileManager.fileExists(atPath: manifestURL.path)
+        else {
+            // A previous launch left a transaction marker behind. Startup
+            // recovery normally settles it before another delete is issued;
+            // refusing to overwrite it keeps both copies recoverable if it
+            // did not.
+            throw FileBridgeError.deletionStagingFailed(
+                relativePath: relativePath,
+                underlying: CocoaError(.fileWriteFileExists)
+            )
+        }
+
+        let manifest = DeletionManifest(recordID: recordID, relativePath: relativePath)
+        do {
+            let data = try JSONEncoder().encode(manifest)
+            try data.write(to: manifestURL, options: .atomic)
+            try fileManager.moveItem(at: sourceURL, to: stagedURL)
+        } catch {
+            // Keep a successfully written manifest. If the move did happen
+            // before an error was reported, recovery still has the mapping;
+            // if it did not, recovery can remove the marker after observing
+            // the original destination.
+            throw FileBridgeError.deletionStagingFailed(
+                relativePath: relativePath,
+                underlying: error
+            )
+        }
+
+        return DeletionStage(
+            recordID: recordID,
+            relativePath: relativePath,
+            stagedURL: stagedURL,
+            manifestURL: manifestURL
+        )
+    }
+
+    /// Restores a staged file to its original location. Existing bytes are
+    /// never overwritten: a collision remains staged for a later, explicit
+    /// recovery decision.
+    func restoreStagedDeletion(_ stage: DeletionStage) throws {
+        let fileManager = FileManager.default
+        do {
+            try validateDeletionStage(stage)
+            _ = try validatedDeletionURL(forRelativePath: stage.relativePath)
+        } catch {
+            throw FileBridgeError.deletionRestoreFailed(
+                relativePath: stage.relativePath,
+                underlying: error
+            )
+        }
+        guard fileManager.fileExists(atPath: stage.stagedURL.path) else {
+            return
+        }
+        guard isRegularDeletionFile(at: stage.stagedURL) else {
+            throw FileBridgeError.deletionRestoreFailed(
+                relativePath: stage.relativePath,
+                underlying: FileBridgeError.deletionPathInvalid(relativePath: stage.relativePath)
+            )
+        }
+
+        let destinationURL: URL
+        do {
+            destinationURL = try validatedDeletionURL(forRelativePath: stage.relativePath)
+        } catch {
+            throw FileBridgeError.deletionRestoreFailed(
+                relativePath: stage.relativePath,
+                underlying: error
+            )
+        }
+        guard !fileManager.fileExists(atPath: destinationURL.path) else {
+            throw FileBridgeError.deletionRestoreConflict(relativePath: stage.relativePath)
+        }
+
+        do {
+            try fileManager.createDirectory(
+                at: destinationURL.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+            try fileManager.moveItem(at: stage.stagedURL, to: destinationURL)
+            // A failed marker cleanup is harmless: the next recovery pass
+            // sees the destination and removes the marker without replacing
+            // anything.
+            try? fileManager.removeItem(at: stage.manifestURL)
+            removeEmptyDeletionStagingDirectoryIfPossible()
+        } catch {
+            throw FileBridgeError.deletionRestoreFailed(
+                relativePath: stage.relativePath,
+                underlying: error
+            )
+        }
+    }
+
+    /// Removes a committed deletion's staged payload and manifest. Cleanup
+    /// failures are surfaced to the caller so they can be logged while the
+    /// already-committed metadata transaction remains authoritative.
+    func finalizeStagedDeletion(_ stage: DeletionStage) throws {
+        let fileManager = FileManager.default
+        do {
+            _ = try validatedDeletionURL(forRelativePath: stage.relativePath)
+            try validateDeletionStage(stage)
+            if fileManager.fileExists(atPath: stage.stagedURL.path) {
+                guard isRegularDeletionFile(at: stage.stagedURL) else {
+                    throw FileBridgeError.deletionPathInvalid(relativePath: stage.relativePath)
+                }
+            }
+            if fileManager.fileExists(atPath: stage.manifestURL.path) {
+                guard isRegularDeletionFile(at: stage.manifestURL) else {
+                    throw FileBridgeError.deletionPathInvalid(relativePath: stage.relativePath)
+                }
+            }
+            if fileManager.fileExists(atPath: stage.stagedURL.path) {
+                try fileManager.removeItem(at: stage.stagedURL)
+            }
+            if fileManager.fileExists(atPath: stage.manifestURL.path) {
+                try fileManager.removeItem(at: stage.manifestURL)
+            }
+            removeEmptyDeletionStagingDirectoryIfPossible()
+        } catch {
+            throw FileBridgeError.deletionFinalizeFailed(
+                relativePath: stage.relativePath,
+                underlying: error
+            )
+        }
+    }
+
+    /// Reconciles pending deletion manifests before startup removes records
+    /// whose files are missing. `appOwnedPaths` contains only rows that are
+    /// still persisted and still app-owned; all other stages represent a
+    /// committed deletion and can be discarded. The returned IDs are rows
+    /// whose bytes could not be safely restored yet; startup must preserve
+    /// those rows so a later pass can retry.
+    func reconcileDeletionStaging(for appOwnedPaths: [UUID: String]) throws -> Set<UUID> {
+        let stagingDirectory = try deletionStagingDirectoryURL()
+        let fileManager = FileManager.default
+        guard fileManager.fileExists(atPath: stagingDirectory.path) else { return [] }
+
+        let entries = try fileManager.contentsOfDirectory(
+            at: stagingDirectory,
+            includingPropertiesForKeys: nil,
+            options: []
+        )
+        var pendingRecordIDs: Set<UUID> = []
+        for artifactURL in entries {
+            let filenameID = deletionArtifactRecordID(for: artifactURL)
+            let isManifest = artifactURL.pathExtension == "json"
+
+            // A payload paired with a manifest is reconciled by that manifest.
+            // A payload without one is an incomplete journal: a matching row
+            // stays protected, while an unknown identity blocks all disowning.
+            if !isManifest {
+                let pairedManifest = stagingDirectory.appendingPathComponent(
+                    artifactURL.deletingPathExtension().lastPathComponent + Self.deletionManifestSuffix,
+                    isDirectory: false
+                )
+                if artifactURL.pathExtension == String(Self.deletionPayloadSuffix.dropFirst()),
+                   fileManager.fileExists(atPath: pairedManifest.path) {
+                    continue
+                }
+                if let filenameID, appOwnedPaths[filenameID] != nil {
+                    pendingRecordIDs.insert(filenameID)
+                    continue
+                }
+                throw unresolvedDeletionArtifactError(for: artifactURL)
+            }
+
+            guard let filenameID else {
+                throw unresolvedDeletionArtifactError(for: artifactURL)
+            }
+
+            do {
+                guard isRegularDeletionFile(at: artifactURL) else {
+                    throw unresolvedDeletionArtifactError(for: artifactURL)
+                }
+                let data = try Data(contentsOf: artifactURL)
+                let manifest = try JSONDecoder().decode(DeletionManifest.self, from: data)
+                // The filename and payload identity are both part of the
+                // journal contract. A mismatch is ambiguous, so preserve
+                // every matching row and artifact without cleaning either.
+                guard filenameID == manifest.recordID else {
+                    if appOwnedPaths[filenameID] != nil {
+                        pendingRecordIDs.insert(filenameID)
+                    }
+                    if appOwnedPaths[manifest.recordID] != nil {
+                        pendingRecordIDs.insert(manifest.recordID)
+                    }
+                    guard
+                        appOwnedPaths[filenameID] != nil ||
+                        appOwnedPaths[manifest.recordID] != nil
+                    else {
+                        throw unresolvedDeletionArtifactError(for: artifactURL)
+                    }
+                    continue
+                }
+
+                _ = try validatedDeletionURL(forRelativePath: manifest.relativePath)
+                let stagedURL = stagingDirectory.appendingPathComponent(
+                    manifest.recordID.uuidString + Self.deletionPayloadSuffix,
+                    isDirectory: false
+                )
+                let stage = DeletionStage(
+                    recordID: manifest.recordID,
+                    relativePath: manifest.relativePath,
+                    stagedURL: stagedURL,
+                    manifestURL: artifactURL
+                )
+                try validateDeletionStage(stage)
+                if fileManager.fileExists(atPath: stagedURL.path),
+                   !isRegularDeletionFile(at: stagedURL) {
+                    throw unresolvedDeletionArtifactError(for: stagedURL)
+                }
+
+                guard let persistedPath = appOwnedPaths[manifest.recordID] else {
+                    // A row that is no longer present means the metadata save
+                    // committed. Never touch a new destination that may have
+                    // appeared since the delete began.
+                    try? finalizeStagedDeletion(stage)
+                    continue
+                }
+
+                guard persistedPath == manifest.relativePath else {
+                    pendingRecordIDs.insert(manifest.recordID)
+                    continue
+                }
+                let destinationURL = try validatedDeletionURL(forRelativePath: persistedPath)
+                guard fileManager.fileExists(atPath: stagedURL.path) else {
+                    // If the move never completed, leave a present
+                    // destination alone and discard only the marker. If both
+                    // are gone, protect the row for a later retry rather
+                    // than treating the incomplete journal as a commit.
+                    if fileManager.fileExists(atPath: destinationURL.path) {
+                        try? fileManager.removeItem(at: artifactURL)
+                    } else {
+                        pendingRecordIDs.insert(manifest.recordID)
+                    }
+                    continue
+                }
+                guard isRegularDeletionFile(at: stagedURL) else {
+                    pendingRecordIDs.insert(manifest.recordID)
+                    continue
+                }
+
+                if fileManager.fileExists(atPath: destinationURL.path) {
+                    // This can be a previous successful restore whose marker
+                    // cleanup was interrupted. Remove only byte-identical
+                    // duplicate staging; preserve a collision for safety.
+                    if fileManager.contentsEqual(
+                        atPath: destinationURL.path,
+                        andPath: stagedURL.path
+                    ) {
+                        try? finalizeStagedDeletion(stage)
+                    } else {
+                        pendingRecordIDs.insert(manifest.recordID)
+                    }
+                    continue
+                }
+
+                do {
+                    try fileManager.createDirectory(
+                        at: destinationURL.deletingLastPathComponent(),
+                        withIntermediateDirectories: true
+                    )
+                    try fileManager.moveItem(at: stagedURL, to: destinationURL)
+                    try? fileManager.removeItem(at: artifactURL)
+                } catch {
+                    // Leave both artifacts for a later launch. A transient
+                    // filesystem error must not turn a recoverable row into
+                    // a missing-file disown.
+                    pendingRecordIDs.insert(manifest.recordID)
+                }
+            } catch {
+                // Keep malformed/incomplete manifests and their bytes hidden.
+                // A UUID filename still identifies the row whose disown must
+                // be deferred. An unknown filename is an unreadable journal
+                // state, so abort reconciliation and make startup skip every
+                // missing-file disown for this launch.
+                if appOwnedPaths[filenameID] != nil {
+                    pendingRecordIDs.insert(filenameID)
+                } else {
+                    throw error
+                }
+            }
+        }
+        removeEmptyDeletionStagingDirectoryIfPossible()
+        return pendingRecordIDs
+    }
+
+    private func removeEmptyDeletionStagingDirectoryIfPossible() {
+        guard let stagingDirectory = try? deletionStagingDirectoryURL() else { return }
+        guard
+            let entries = try? FileManager.default.contentsOfDirectory(
+                at: stagingDirectory,
+                includingPropertiesForKeys: nil,
+                options: []
+            ),
+            entries.isEmpty
+        else { return }
+        try? FileManager.default.removeItem(at: stagingDirectory)
+    }
+
     /// Deletes the file at `path` relative to the Documents directory.
     /// Removing an already-missing file succeeds, so retried deletions
     /// converge; any other failure is surfaced, never swallowed.
     func deleteFile(atRelativePath path: String) throws {
-        let url = absoluteURL(forRelativePath: path)
-        guard FileManager.default.fileExists(atPath: url.path) else { return }
+        let url = try validatedDeletionURL(forRelativePath: path)
+        let fileManager = FileManager.default
+        guard fileManager.fileExists(atPath: url.path) else { return }
+        guard isRegularDeletionFile(at: url) else {
+            throw FileBridgeError.deletionPathInvalid(relativePath: path)
+        }
         do {
-            try FileManager.default.removeItem(at: url)
+            try fileManager.removeItem(at: url)
         } catch {
             throw FileBridgeError.deletionFailed(relativePath: path, underlying: error)
         }

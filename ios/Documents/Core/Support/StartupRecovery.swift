@@ -16,25 +16,50 @@ private let recoveryLog = Logger(subsystem: "com.docdeck.app", category: "startu
 /// and exactly one owner may adopt.
 enum StartupRecovery {
     /// Reconciles records and the thumbnail cache with the disk:
-    /// 1. App-owned records (`absolutePath == nil`) whose resolved file no
+    /// 1. Pending file transactions are reconciled first: rows that survived
+    ///    a deletion or move metadata transaction regain their bytes/path,
+    ///    while journals whose rows are gone are finalized conservatively.
+    /// 2. App-owned records (`absolutePath == nil`) whose resolved file no
     ///    longer exists are disowned — trashed ones included, a record
     ///    without a file is a lie. External records are left alone; the
     ///    device library prunes vanished external files on its own pass.
-    /// 2. Thumbnail cache entries that no longer match a current record's
+    /// 3. Thumbnail cache entries that no longer match a current record's
     ///    key are swept.
-    /// 3. Records predating the `createdAt` field get the file's real
+    /// 4. Records predating the `createdAt` field get the file's real
     ///    creation date backfilled (unknowable ones retry next launch).
     @MainActor
     static func run(store: DocumentStore, thumbnails: ThumbnailStore = .shared) async {
+        var transactionProtectedRecordIDs: Set<UUID>?
         do {
-            for record in try fetchAll(store) where record.absolutePath == nil {
-                let url = store.fileBridge.absoluteURL(forRelativePath: record.relativePath)
-                guard !FileManager.default.fileExists(atPath: url.path) else { continue }
-                try store.disown(record)
-                recoveryLog.info("Disowned \(record.displayName): backing file no longer exists")
+            let appOwnedPairs: [(UUID, String)] = try fetchAll(store).compactMap { record in
+                guard record.absolutePath == nil else { return nil }
+                return (record.id, record.relativePath)
             }
+            let appOwnedPaths = Dictionary(uniqueKeysWithValues: appOwnedPairs)
+            var protectedIDs = try store.fileBridge.reconcileDeletionStaging(for: appOwnedPaths)
+            protectedIDs.formUnion(try store.fileBridge.reconcileMoveJournals(for: appOwnedPaths))
+            transactionProtectedRecordIDs = protectedIDs
         } catch {
-            recoveryLog.error("Startup recovery failed: \(error.localizedDescription)")
+            // A journal directory that cannot be enumerated leaves the
+            // outcome unknown. Preserve every missing app-owned row for this
+            // launch rather than risking disowning recoverable bytes.
+            transactionProtectedRecordIDs = nil
+            recoveryLog.error("File transaction recovery failed: \(error.localizedDescription)")
+        }
+
+        if let transactionProtectedRecordIDs {
+            do {
+                for record in try fetchAll(store)
+                    where record.absolutePath == nil && !transactionProtectedRecordIDs.contains(record.id)
+                {
+                    let url = store.fileBridge.absoluteURL(forRelativePath: record.relativePath)
+                    guard !FileManager.default.fileExists(atPath: url.path) else { continue }
+                    try store.disown(record)
+                    recoveryLog.info("Disowned \(record.displayName): backing file no longer exists")
+                }
+            } catch {
+                recoveryLog.error("Startup recovery failed: \(error.localizedDescription)")
+            }
         }
 
         do {

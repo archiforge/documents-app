@@ -3,9 +3,15 @@
 
 # Xcode build artifacts & user state
 ios/build/
+ios/Packages/NativeArchives/.build/
+ios/Packages/NativeArchives/Artifacts/
 DerivedData/
 xcuserdata/
 *.xcuserstate
+
+# Local Office conversion build outputs and private runtime files
+/office-conversion-service/target/
+/office-conversion-service/.runtime/
 
 # Decompiled APK output (regenerable from Documents.apk)
 /analysis/apk/
@@ -28,3 +34,5 @@ xcuserdata/
 # Agent tooling state
 .mimosa/
 .zcode/
+/.v2c/
+/.video_agent/

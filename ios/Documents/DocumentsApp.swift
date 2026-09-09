@@ -13,8 +13,12 @@ struct DocumentsApp: App {
     @State private var library = DeviceLibraryService()
     /// App-icon quick actions (Scan / Import / New Text), routed to tabs.
     @State private var quickActions = QuickActionRouter()
+    @State private var privateSafe = PrivateSafeSession()
     /// Bridges UIKit's shortcut delivery to `QuickActionRouter`.
     @UIApplicationDelegateAdaptor(QuickActionDelegate.self) private var quickActionDelegate
+#if DEBUG
+    @State private var scannerFixtureReady = false
+#endif
 
     init() {
         do {
@@ -31,14 +35,28 @@ struct DocumentsApp: App {
 
     var body: some Scene {
         WindowGroup {
-            HomeView()
+            ZStack(alignment: .topLeading) {
+                HomeView()
+#if DEBUG
+                if scannerFixtureReady {
+                    Text("Scanner fixture ready")
+                        .accessibilityIdentifier("scanner-fixture-ready")
+                        .frame(width: 1, height: 1)
+                        .opacity(0.01)
+                        .allowsHitTesting(false)
+                }
+#endif
+            }
                 .environment(store)
                 .environment(library)
                 .environment(quickActions)
+                .environment(privateSafe)
                 .task {
                     // Remove temp artifacts left behind by previous runs
                     // (crash, force quit) that the in-registry cleanup missed.
                     TempArtifactTracker.sweepAtLaunch()
+                    store.fileBridge.sweepArchiveStaging()
+                    PrivateSafeSession.sweepPlaintextCachesAtLaunch()
 
                     // Reconcile records against the disk before the library
                     // adopts anything. Failures are logged, never fatal.
@@ -53,6 +71,12 @@ struct DocumentsApp: App {
                     }
 
                     library.start(store: store)
+#if DEBUG
+                    if ScanDraftUITestFixture.isRequested {
+                        await ScanDraftUITestFixture.seedIfNeeded()
+                        scannerFixtureReady = true
+                    }
+#endif
                 }
         }
         .modelContainer(container)
